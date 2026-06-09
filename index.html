@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Clone VC - Music Ready</title>
+    <title>Telegram Clone VC - Keyboard & UI Fix</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -40,32 +40,28 @@
         .header-icons i { font-size: 20px; color: var(--text-grey); cursor: pointer; transition: color 0.2s; }
         .header-icons i:active { color: white; }
 
-        /* --- NOW PLAYING MUSIC BANNER (NEW) --- */
+        /* NOW PLAYING MUSIC BANNER */
         .music-banner {
             background-color: rgba(63, 172, 240, 0.1);
             border-left: 3px solid var(--tg-blue);
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            display: none; /* Hidden by default until song plays */
-            animation: slideDown 0.3s ease;
+            padding: 10px 20px; display: flex; align-items: center; gap: 15px;
+            display: none; animation: slideDown 0.3s ease;
         }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
         .music-banner .music-icon {
-            width: 40px; height: 40px; border-radius: 8px;
-            background-color: var(--tg-blue); display: flex; justify-content: center; align-items: center;
-            font-size: 18px; color: white; box-shadow: 0 0 10px rgba(63, 172, 240, 0.5);
+            width: 40px; height: 40px; border-radius: 8px; background-color: var(--tg-blue); 
+            display: flex; justify-content: center; align-items: center; font-size: 18px; color: white; box-shadow: 0 0 10px rgba(63, 172, 240, 0.5);
         }
         .music-banner .music-info { flex: 1; overflow: hidden; }
         .music-banner .music-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .music-banner .music-status { font-size: 12px; color: var(--tg-blue); margin-top: 2px; }
-        /* -------------------------------------- */
 
         /* Participant List */
         .participant-list {
             flex: 1; overflow-y: auto; padding: 0; margin-top: 0; padding-bottom: 90px; 
+            /* Added smooth scrolling */
+            scroll-behavior: smooth;
         }
 
         .participant-item {
@@ -103,9 +99,10 @@
         .bottom-controls {
             display: flex; justify-content: space-around; align-items: center;
             padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px;
-            background-color: var(--bg-dark); position: absolute; bottom: 0; left: 0; right: 0; width: 100%; z-index: 20; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: var(--bg-dark); position: absolute; bottom: 0; left: 0; right: 0; width: 100%; z-index: 20; 
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
-        .bottom-controls.hide { transform: translateY(100%); }
+        .bottom-controls.hide { transform: translateY(150%); }
         .control-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .control-btn {
             width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; justify-content: center; align-items: center;
@@ -121,7 +118,7 @@
         .chat-input-area {
             position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark);
             padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px;
-            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 30;
+            transform: translateY(150%); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); z-index: 30;
         }
         .chat-input-area.show { transform: translateY(0); }
         .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
@@ -208,20 +205,23 @@
     </div>
 
     <script>
-        // --- VIEWPORT FIX ---
-        function setViewportHeight() { document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`); }
-        window.addEventListener('resize', setViewportHeight); setViewportHeight();
-
-        // --- TELEGRAM SETUP ---
+        // --- PERFECT VIEWPORT SYNC FOR TELEGRAM KEYBOARD ---
         const tg = window.Telegram.WebApp;
         tg.expand(); tg.setHeaderColor('#181d22');
         const haptic = tg.HapticFeedback;
 
-        // --- BOT & BACKEND CONFIG (CHANGE THESE LATER) ---
+        function setViewportHeight() { 
+            // Use Telegram's actual visible height when keyboard opens
+            let vh = (tg.viewportHeight || window.innerHeight) * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`); 
+        }
+        tg.onEvent('viewportChanged', setViewportHeight);
+        window.addEventListener('resize', setViewportHeight); 
+        setViewportHeight();
+
+        // --- BOT CONFIG ---
         const botUsername = "YourBotUsername"; 
-        // यहाँ आपको अपने सर्वर का असली URL डालना है (जैसे https://my-vc-server.onrender.com)
         const BACKEND_URL = "http://localhost:3000"; 
-        
         const urlParams = new URLSearchParams(window.location.search);
         const currentGroupId = urlParams.get('group_id') || 'test_group';
 
@@ -251,76 +251,35 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
 
-        // --- SOCKET.IO BACKEND INTEGRATION ---
-        const socket = io(BACKEND_URL, {
-            transports: ['websocket', 'polling']
-        });
+        // --- SOCKET.IO & AUDIO LOGIC ---
+        const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
         const audioPlayer = document.getElementById('bg-audio-player');
         const musicBanner = document.getElementById('music-banner');
         const playingTitle = document.getElementById('playing-title');
 
-        // Unlock audio on first interaction (Mobile browsers block autoplay)
         document.body.addEventListener('click', function unlockAudio() {
             audioPlayer.play().then(() => audioPlayer.pause()).catch(e => {});
             document.body.removeEventListener('click', unlockAudio);
         }, { once: true });
 
-        socket.on('connect', () => {
-            console.log("Connected to Backend Server");
-            // Join specific group room (as expected by server.js)
-            socket.emit('join_room', `group_${currentGroupId}`);
-        });
+        socket.on('connect', () => { socket.emit('join_room', `group_${currentGroupId}`); });
 
-        // Event sent by playTrack() in server.js
         socket.on('track_changed', (state) => {
             if (state.currentTrack) {
-                musicBanner.style.display = 'flex';
-                playingTitle.innerText = state.currentTrack.title;
-                
-                // Fetch audio from the server's cache
+                musicBanner.style.display = 'flex'; playingTitle.innerText = state.currentTrack.title;
                 audioPlayer.src = `${BACKEND_URL}/audio_cache/${state.currentTrack.videoId}.m4a`;
                 audioPlayer.currentTime = state.currentTime;
-                
-                if (state.isPlaying) {
-                    audioPlayer.play().catch(e => console.log("Autoplay blocked, user needs to tap screen."));
-                }
+                if (state.isPlaying) audioPlayer.play().catch(e => {});
             } else {
-                musicBanner.style.display = 'none';
-                audioPlayer.pause();
-                audioPlayer.src = "";
+                musicBanner.style.display = 'none'; audioPlayer.pause(); audioPlayer.src = "";
             }
         });
+        socket.on('sync_pause', (data) => { audioPlayer.currentTime = data.pauseTime; audioPlayer.pause(); showToast(`Paused by ${data.userName}`); });
+        socket.on('sync_play', (data) => { audioPlayer.currentTime = data.resumeTime; audioPlayer.play(); showToast(`Resumed by ${data.userName}`); });
+        socket.on('session_ended', (data) => { musicBanner.style.display = 'none'; audioPlayer.pause(); showToast(data.message || "Stream ended"); });
+        function requestSkip() { if(haptic) haptic.impactOccurred('medium'); socket.emit('request_skip', { groupId: currentGroupId, userName: currentUser }); showToast("Skipping track..."); }
 
-        // Event sent by pauseForAll()
-        socket.on('sync_pause', (data) => {
-            audioPlayer.currentTime = data.pauseTime;
-            audioPlayer.pause();
-            showToast(`Paused by ${data.userName}`);
-        });
-
-        // Event sent by playForAll()
-        socket.on('sync_play', (data) => {
-            audioPlayer.currentTime = data.resumeTime;
-            audioPlayer.play();
-            showToast(`Resumed by ${data.userName}`);
-        });
-
-        // Event sent by stopPlaying() or endForAll()
-        socket.on('session_ended', (data) => {
-            musicBanner.style.display = 'none';
-            audioPlayer.pause();
-            showToast(data.message || "Stream ended");
-        });
-
-        // Function to request skip to backend (Optional feature for UI)
-        function requestSkip() {
-            if(haptic) haptic.impactOccurred('medium');
-            socket.emit('request_skip', { groupId: currentGroupId, userName: currentUser });
-            showToast("Skipping track...");
-        }
-        // -------------------------------------
-
-        // Normal UI Functions (Mic, Chat, etc.)
+        // --- UI CONTROLS ---
         let isSpeakerHigh = true;
         function toggleSpeaker() {
             if(haptic) haptic.selectionChanged();
@@ -346,15 +305,31 @@
             navigator.clipboard ? navigator.clipboard.writeText(inviteLink).then(() => showToast("Link copied!")) : showToast("Invite: " + inviteLink);
         }
 
+        // --- CHAT LOGIC WITH KEYBOARD & AUTO-CLOSE FIXES ---
         const chatBox = document.getElementById('chat-box');
         const mainControls = document.getElementById('main-controls');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const msgContainer = document.getElementById('message-container');
 
-        function openChat() { mainControls.classList.add('hide'); chatBox.classList.add('show'); chatInput.focus(); }
-        function closeChat() { chatBox.classList.remove('show'); mainControls.classList.remove('hide'); }
+        function openChat() { 
+            mainControls.classList.add('hide'); 
+            chatBox.classList.add('show'); 
+            chatInput.focus(); 
+        }
+        
+        function closeChat() { 
+            chatInput.blur(); // Ensures keyboard closes
+            chatBox.classList.remove('show'); 
+            mainControls.classList.remove('hide'); 
+        }
+        
         function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
+
+        // Close chat if user taps on the participant list background
+        document.getElementById('participant-list').addEventListener('click', () => {
+            if(chatBox.classList.contains('show')) closeChat();
+        });
 
         function sendMessage() {
             const text = chatInput.value.trim();
@@ -366,7 +341,13 @@
                 ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : currentInitial}</div>
                 <span><b>${currentUser}</b> ${text}</span>`;
             
-            msgContainer.appendChild(bubble); chatInput.value = ''; checkInput();
+            msgContainer.appendChild(bubble); 
+            chatInput.value = ''; 
+            checkInput();
+            
+            // Auto close the chat to bring buttons back
+            closeChat();
+
             setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 300); }, 4000);
         }
     </script>
