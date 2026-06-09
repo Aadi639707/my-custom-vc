@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Clone VC - Ultimate Keyboard Fix</title>
+    <title>Telegram Clone VC - Live Voice Connect</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://download.agora.io/sdk/web/AgoraRTC_N-4.22.0.js"></script>
 
     <style>
         :root {
@@ -26,7 +27,6 @@
             overflow: hidden; position: relative;
         }
 
-        /* Utility Class for forcing elements to hide completely */
         .hidden { display: none !important; }
 
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; }
@@ -66,7 +66,7 @@
         .msg-bubble .small-avatar { width: 18px; height: 18px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold; overflow: hidden; }
         .msg-bubble span { font-size: 14px; color: white; }
 
-        /* Bottom Controls - Animations removed for instant swapping */
+        /* Bottom Controls */
         .bottom-controls {
             display: flex; justify-content: space-around; align-items: center;
             padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px;
@@ -83,7 +83,7 @@
         .main-mic.state-muted { background-color: var(--btn-dark); }
         .main-mic.state-live { background-color: var(--tg-green); }
 
-        /* Chat Input Area - Animations removed, relies purely on .hidden class now */
+        /* Chat Input Area */
         .chat-input-area {
             position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark);
             padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30;
@@ -125,7 +125,7 @@
     </div>
 
     <div class="participant-list" id="participant-list">
-        <div class="participant-item">
+        <div class="participant-item" id="my-row">
             <div class="avatar" id="my-avatar-container" style="background-color: var(--tg-blue);">
                 <span id="my-avatar-text">U</span>
             </div>
@@ -159,7 +159,7 @@
             <button class="control-btn" onclick="openChat()"><i class="fa-solid fa-message"></i></button>
         </div>
         <div class="control-btn-wrap">
-            <button class="control-btn leave" onclick="tg.close()"><i class="fa-solid fa-phone-slash"></i></button>
+            <button class="control-btn leave" onclick="leaveSession()"><i class="fa-solid fa-phone-slash"></i></button>
         </div>
     </div>
 
@@ -183,8 +183,10 @@
 
         const botUsername = "YourBotUsername"; 
         const BACKEND_URL = "http://localhost:3000"; 
+        
         const urlParams = new URLSearchParams(window.location.search);
-        const currentGroupId = urlParams.get('group_id') || 'test_group';
+        // group_id URL se read hoga, default room 'global_room' hai
+        const currentGroupId = urlParams.get('group_id') || 'global_room';
 
         let currentUser = "User";
         let currentInitial = "U";
@@ -208,7 +210,82 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
 
-        /* --- UI CONTROLS --- */
+        /* --- AGORA REAL-TIME VOICE ENGINE INTEGRATION --- */
+        const AGORA_APP_ID = "E23e7078cfc44b6cace111e8025c54a8";
+        const agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        let localAudioTrack = null;
+        let remoteUsers = {};
+
+        async function initAgora() {
+            try {
+                // Testing mode me Token aur UID dono null rhenge
+                await agoraClient.join(AGORA_APP_ID, currentGroupId, null, null);
+                console.log("Agora Connected into Room: " + currentGroupId);
+
+                // Jab koi dusra banda voice stream start karega
+                agoraClient.on("user-published", async (user, mediaType) => {
+                    await agoraClient.subscribe(user, mediaType);
+                    if (mediaType === "audio") {
+                        user.audioTrack.play();
+                        remoteUsers[user.uid] = user;
+                        renderRemoteUser(user.uid, "User_" + user.uid, true);
+                    }
+                });
+
+                // Jab koi mute karega ya leave karega
+                agoraClient.on("user-unpublished", (user) => {
+                    removeRemoteUser(user.uid);
+                });
+
+            } catch (error) {
+                console.error("Agora Voice Sync Failed", error);
+            }
+        }
+
+        // Dynamic Member UI Rendering Functions
+        function renderRemoteUser(uid, name, isMuted) {
+            if(document.getElementById(`user-${uid}`)) return;
+            const list = document.getElementById('participant-list');
+            const row = document.createElement('div');
+            row.className = 'participant-item';
+            row.id = `user-${uid}`;
+            row.innerHTML = `
+                <div class="avatar" style="background-color: #e8a09f;"><span>${name.charAt(0)}</span></div>
+                <div class="info">
+                    <span class="name">${name}</span>
+                    <span class="status ${!isMuted ? 'speaking' : ''}" id="status-${uid}">${!isMuted ? 'speaking' : 'listening'}</span>
+                </div>
+                <i class="fa-solid ${isMuted ? 'fa-microphone-slash' : 'fa-microphone green'} mic-icon" id="mic-${uid}"></i>
+            `;
+            list.insertBefore(row, list.lastElementChild);
+        }
+
+        function removeRemoteUser(uid) {
+            const el = document.getElementById(`user-${uid}`);
+            if(el) el.remove();
+            delete remoteUsers[uid];
+        }
+
+        // Run Agora automatically on start
+        initAgora();
+
+        /* --- SOCKET.IO MUSIC PLAYER SYNC --- */
+        const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
+        const audioPlayer = document.getElementById('bg-audio-player');
+        const musicBanner = document.getElementById('music-banner');
+        const playingTitle = document.getElementById('playing-title');
+
+        socket.on('connect', () => { socket.emit('join_room', `group_${currentGroupId}`); });
+        socket.on('track_changed', (state) => {
+            if (state.currentTrack) {
+                musicBanner.style.display = 'flex'; playingTitle.innerText = state.currentTrack.title;
+                audioPlayer.src = `${BACKEND_URL}/audio_cache/${state.currentTrack.videoId}.m4a`;
+                audioPlayer.currentTime = state.currentTime;
+                if (state.isPlaying) audioPlayer.play().catch(e => {});
+            } else { musicBanner.style.display = 'none'; audioPlayer.pause(); audioPlayer.src = ""; }
+        });
+
+        /* --- UI CONTROLS & LIVE MIC SWITCH --- */
         let isSpeakerHigh = true;
         function toggleSpeaker() {
             if(haptic) haptic.selectionChanged();
@@ -218,59 +295,80 @@
         }
 
         let isLive = false;
-        function toggleMainMic() {
+        async function toggleMainMic() {
             if(haptic) haptic.impactOccurred('medium');
             isLive = !isLive;
-            document.getElementById('main-mic-btn').className = isLive ? 'control-btn main-mic state-live' : 'control-btn main-mic state-muted';
-            document.getElementById('main-mic-icon').className = isLive ? 'fa-solid fa-microphone' : 'fa-solid fa-user';
-            document.getElementById('my-list-mic').className = isLive ? 'fa-solid fa-microphone mic-icon green' : 'fa-solid fa-microphone-slash mic-icon';
+            
+            const btn = document.getElementById('main-mic-btn');
+            const icon = document.getElementById('main-mic-icon');
+            const listMic = document.getElementById('my-list-mic');
             const statusText = document.getElementById('my-status');
-            statusText.innerText = isLive ? 'speaking' : 'this is you';
-            statusText.className = isLive ? 'status speaking' : 'status';
+
+            if (isLive) {
+                btn.className = 'control-btn main-mic state-live';
+                icon.className = 'fa-solid fa-microphone';
+                listMic.className = 'fa-solid fa-microphone mic-icon green';
+                statusText.innerText = 'speaking';
+                statusText.className = 'status speaking';
+
+                // AGORA: Mic On aur Audio Stream Publish krna
+                try {
+                    if (!localAudioTrack) {
+                        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    }
+                    await agoraClient.publish([localAudioTrack]);
+                    showToast("Your microphone is live");
+                } catch(err) {
+                    console.error("Mic Access Denied", err);
+                    showToast("Error: Mic permission denied");
+                }
+            } else {
+                btn.className = 'control-btn main-mic state-muted';
+                icon.className = 'fa-solid fa-user';
+                listMic.className = 'fa-solid fa-microphone-slash mic-icon';
+                statusText.innerText = 'this is you';
+                statusText.className = 'status';
+
+                // AGORA: Unpublish Stream (Mute state)
+                try {
+                    if (localAudioTrack) {
+                        await agoraClient.unpublish([localAudioTrack]);
+                        showToast("Muted");
+                    }
+                } catch(err) {
+                    console.log(err);
+                }
+            }
+        }
+
+        async function leaveSession() {
+            if (localAudioTrack) {
+                localAudioTrack.stop();
+                localAudioTrack.close();
+            }
+            await agoraClient.leave();
+            tg.close();
         }
 
         function copyInviteLink() {
-            const inviteLink = `https://t.me/${botUsername}?start=${currentGroupId}`;
-            navigator.clipboard ? navigator.clipboard.writeText(inviteLink).then(() => showToast("Link copied!")) : showToast("Invite: " + inviteLink);
+            const inviteLink = `https://${window.location.hostname}${window.location.pathname}?group_id=${currentGroupId}`;
+            navigator.clipboard ? navigator.clipboard.writeText(inviteLink).then(() => showToast("Invite link copied!")) : showToast("Invite: " + inviteLink);
         }
 
-        /* --- STRICT KEYBOARD & CHAT TOGGLE LOGIC --- */
+        /* --- CHAT LOGIC --- */
         const chatBox = document.getElementById('chat-box');
         const mainControls = document.getElementById('main-controls');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const msgContainer = document.getElementById('message-container');
 
-        // Open chat: Hide main controls completely, Show chat box
-        function openChat() { 
-            mainControls.classList.add('hidden'); 
-            chatBox.classList.remove('hidden'); 
-            chatInput.focus(); 
-        }
-        
-        // Close chat: Force keyboard down, wait slightly, swap UI back
-        function closeChat() { 
-            chatInput.blur(); // FORCE KILLS THE KEYBOARD
-            window.focus(); 
-            
-            // 100ms delay gives the keyboard animation time to drop before buttons appear
-            setTimeout(() => {
-                chatBox.classList.add('hidden'); 
-                mainControls.classList.remove('hidden'); 
-                sendBtn.style.display = 'none';
-            }, 100);
-        }
-        
+        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
+        function closeChat() { chatInput.blur(); window.focus(); setTimeout(() => { chatBox.classList.add('hidden'); mainControls.classList.remove('hidden'); sendBtn.style.display = 'none'; }, 100); }
         function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
-
-        // Clicking on empty background closes keyboard & chat instantly
-        document.getElementById('participant-list').addEventListener('click', () => {
-            if(!chatBox.classList.contains('hidden')) closeChat();
-        });
+        document.getElementById('participant-list').addEventListener('click', () => { if(!chatBox.classList.contains('hidden')) closeChat(); });
 
         function sendMessage(e) {
             e.preventDefault(); 
-            
             const text = chatInput.value.trim();
             if(text === '') return;
             if(haptic) haptic.impactOccurred('light');
@@ -278,15 +376,4 @@
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<div class="small-avatar" style="${photoUrl ? 'background-color: transparent;' : 'background-color: var(--tg-blue);'}">
                 ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : currentInitial}</div>
-                <span><b>${currentUser}</b> ${text}</span>`;
-            
-            msgContainer.appendChild(bubble); 
-            chatInput.value = ''; 
-            
-            closeChat(); // UI is instantly swapped & keyboard hidden
-
-            setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 300); }, 4000);
-        }
-    </script>
-</body>
-</html>
+   
