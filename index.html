@@ -3,20 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Telegram Clone VC</title>
+    <title>Telegram Clone VC - Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --bg-dark: #121619;
+            --header-dark: #181d22;
+            --btn-dark: #2b3a4a;
+            --text-grey: #8b959d;
+            --tg-blue: #3facf0;
+            --tg-green: #34c759;
+            --tg-red: #ff3b30;
+        }
+
         body {
             margin: 0;
             padding: 0;
-            background-color: #121619; /* Exact TG Dark Background */
+            background-color: var(--bg-dark);
             color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            position: relative;
         }
 
         /* Top Header */
@@ -25,7 +36,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 15px 20px;
-            background-color: #181d22;
+            background-color: var(--header-dark);
         }
 
         .header-left {
@@ -43,7 +54,7 @@
         .title-area p {
             margin: 2px 0 0;
             font-size: 13px;
-            color: #8b959d;
+            color: var(--text-grey);
         }
 
         .header-icons i {
@@ -67,14 +78,13 @@
         }
 
         .participant-item:active {
-            background-color: #20262b;
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
         .avatar {
             width: 45px;
             height: 45px;
             border-radius: 50%;
-            background-color: #3f729b;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -100,31 +110,25 @@
 
         .status {
             font-size: 13px;
-            color: #8b959d; /* Default Grey */
+            color: var(--text-grey);
             margin-top: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        .status.speaking { color: #34c759; } /* Green */
-        .status.listening { color: #3facf0; } /* Blue */
+        .status.speaking { color: var(--tg-green); }
 
-        .mic-icon {
-            font-size: 16px;
-        }
-
-        .mic-icon.red { color: #ff3b30; }
-        .mic-icon.green { color: #34c759; }
+        .mic-icon { font-size: 16px; }
         .mic-icon.grey { color: #5a646c; }
+        .mic-icon.red { color: var(--tg-red); } /* Only for admin muted */
+        .mic-icon.green { color: var(--tg-green); }
 
         /* Invite Members Row */
         .invite-row {
             display: flex;
             align-items: center;
             padding: 15px 20px;
-            color: #8b959d;
+            color: var(--text-grey);
             font-size: 16px;
+            cursor: pointer;
         }
 
         .invite-row i {
@@ -133,20 +137,38 @@
             margin-left: 10px;
         }
 
-        /* Floating Speaker Indicator */
-        .floating-speaker {
+        /* Floating Reaction/Chat Bubble (Animated) */
+        .floating-reaction {
+            position: absolute;
+            bottom: 100px; /* Starts slightly lower */
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(to top, rgba(24, 29, 34, 0.9), rgba(24, 29, 34, 0.7));
+            padding: 8px 16px;
+            border-radius: 30px;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 10px;
-            padding: 10px;
-            background: linear-gradient(to top, #181d22, transparent);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
         }
 
-        .floating-speaker .small-avatar {
-            width: 24px;
-            height: 24px;
+        .floating-reaction.show {
+            opacity: 1;
+            bottom: 130px; /* Slides up into view */
+        }
+
+        .floating-reaction .small-avatar {
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            font-weight: bold;
         }
 
         /* Bottom Controls */
@@ -155,7 +177,9 @@
             justify-content: space-around;
             align-items: center;
             padding: 15px 10px 25px 10px;
-            background-color: #181d22;
+            background-color: var(--header-dark);
+            position: relative;
+            z-index: 20;
         }
 
         .control-btn-wrap {
@@ -177,11 +201,16 @@
             font-size: 22px;
             color: white;
             cursor: pointer;
-            background-color: #2b3a4a; /* TG Blue Muted */
+            background-color: var(--btn-dark);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
         }
 
         .control-btn.leave {
-            background-color: #ff3b30;
+            background-color: var(--tg-red);
         }
 
         .control-label {
@@ -189,15 +218,30 @@
             color: #ffffff;
         }
 
-        /* Glow effect for main mic button */
+        /* Main Mic Button States */
         .main-mic {
-            box-shadow: 0 0 0 4px rgba(63, 172, 240, 0.2);
-            background-color: #3facf0;
+            width: 65px;
+            height: 65px;
+            font-size: 26px;
         }
-        
-        .main-mic.muted-state {
-            background-color: #2b3a4a;
-            box-shadow: none;
+
+        /* State 1: Muted (Blue) */
+        .main-mic.state-muted {
+            background-color: var(--btn-dark);
+            box-shadow: 0 0 0 4px rgba(63, 172, 240, 0.1);
+        }
+
+        /* State 2: Live/Speaking (Green) */
+        .main-mic.state-live {
+            background-color: var(--tg-green);
+            box-shadow: 0 0 15px rgba(52, 199, 89, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(52, 199, 89, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
         }
 
     </style>
@@ -208,55 +252,36 @@
         <div class="header-left">
             <i class="fa-solid fa-arrow-left"></i>
             <div class="title-area">
-                <h2>Song_wale</h2>
-                <p>9 participants</p>
+                <h2>Group VC</h2>
+                <p id="participant-count">1 participant</p>
             </div>
         </div>
         <div class="header-icons">
-            <i class="fa-solid fa-tv"></i>
             <i class="fa-solid fa-ellipsis-vertical"></i>
         </div>
     </div>
 
-    <div class="participant-list" id="participants">
+    <div class="participant-list" id="participants-container">
         
-        <div class="participant-item">
-            <div class="avatar" style="background-color: #e8a09f;">L</div>
-            <div class="info">
-                <span class="name">Leya Music Bot - Assistant</span>
-                <span class="status speaking">speaking</span>
-            </div>
-            <i class="fa-solid fa-microphone mic-icon green"></i>
-        </div>
-
-        <div class="participant-item">
-            <div class="avatar" id="my-avatar" style="background-color: #3facf0;">U</div>
+        <div class="participant-item" id="my-participant-row">
+            <div class="avatar" id="my-avatar" style="background-color: var(--tg-blue);">U</div>
             <div class="info">
                 <span class="name" id="my-name">You</span>
-                <span class="status listening">this is you</span>
+                <span class="status" id="my-status">listening</span>
             </div>
-            <i class="fa-solid fa-microphone-slash mic-icon red"></i>
+            <i class="fa-solid fa-microphone-slash mic-icon grey" id="my-mic-indicator"></i>
         </div>
 
-        <div class="participant-item">
-            <div class="avatar" style="background-color: #b08d57;">M</div>
-            <div class="info">
-                <span class="name">Mishu ♡︎</span>
-                <span class="status">The next chapter is called Mine 🥂...</span>
-            </div>
-            <i class="fa-solid fa-microphone-slash mic-icon grey"></i>
-        </div>
-
-        <div class="invite-row">
+        <div class="invite-row" onclick="alert('Share link will be copied here')">
             <i class="fa-solid fa-user-plus"></i>
             <span>Invite Members</span>
         </div>
 
     </div>
 
-    <div class="floating-speaker">
-        <div class="small-avatar" style="background-color: #b08d57; display: flex; justify-content: center; align-items: center; font-size: 10px;">M</div>
-        <span style="font-size: 14px; font-weight: 500;">Mishu ♡︎ ❤️</span>
+    <div class="floating-reaction" id="reaction-popup">
+        <div class="small-avatar" id="reaction-avatar" style="background-color: #b08d57;">S</div>
+        <span style="font-size: 14px; font-weight: 500;" id="reaction-text">User ❤️</span>
     </div>
 
     <div class="bottom-controls">
@@ -266,19 +291,19 @@
         </div>
         
         <div class="control-btn-wrap">
-            <button class="control-btn main-mic muted-state" id="main-mic-btn" onclick="toggleMainMic()">
-                <i class="fa-solid fa-microphone-slash" id="main-mic-icon"></i>
+            <button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()">
+                <i class="fa-solid fa-user" id="main-mic-icon"></i>
             </button>
             <span class="control-label" id="main-mic-label">Muted</span>
         </div>
 
         <div class="control-btn-wrap">
-            <button class="control-btn"><i class="fa-solid fa-comment-dots"></i></button>
+            <button class="control-btn" onclick="simulateReaction()"><i class="fa-solid fa-message"></i></button>
             <span class="control-label">Message</span>
         </div>
 
         <div class="control-btn-wrap">
-            <button class="control-btn leave" onclick="tg.close()"><i class="fa-solid fa-phone-slash"></i></button>
+            <button class="control-btn leave" onclick="closeApp()"><i class="fa-solid fa-phone-slash"></i></button>
             <span class="control-label">Leave</span>
         </div>
     </div>
@@ -286,32 +311,100 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand(); 
-        tg.setHeaderColor('#181d22'); // Match header color
+        tg.setHeaderColor('#181d22'); 
 
-        // Fetch Real User Data
+        // 1. Fetch Real User Data
         const user = tg.initDataUnsafe?.user;
         if (user) {
             document.getElementById('my-name').innerText = user.first_name;
             document.getElementById('my-avatar').innerText = user.first_name.charAt(0).toUpperCase();
         }
 
-        // Main Mic Button Logic
-        let isMuted = true;
+        // 2. Main Mic Button Logic (Toggle between Muted/Listening and Live/Speaking)
+        let isLive = false;
         function toggleMainMic() {
-            isMuted = !isMuted;
+            isLive = !isLive;
             const btn = document.getElementById('main-mic-btn');
             const icon = document.getElementById('main-mic-icon');
             const label = document.getElementById('main-mic-label');
+            const myStatus = document.getElementById('my-status');
+            const myMicIndicator = document.getElementById('my-mic-indicator');
 
-            if (isMuted) {
-                btn.classList.add('muted-state');
-                icon.className = 'fa-solid fa-microphone-slash';
+            if (!isLive) {
+                // Return to Muted/Listening state
+                btn.className = 'control-btn main-mic state-muted';
+                icon.className = 'fa-solid fa-user';
                 label.innerText = 'Muted';
+                
+                myStatus.innerText = 'listening';
+                myStatus.className = 'status';
+                myMicIndicator.className = 'fa-solid fa-microphone-slash mic-icon grey';
             } else {
-                btn.classList.remove('muted-state');
-                icon.className = 'fa-solid fa-user'; // Simple user icon when active, like in the screenshot
+                // Switch to Live/Speaking state
+                btn.className = 'control-btn main-mic state-live';
+                icon.className = 'fa-solid fa-microphone';
                 label.innerText = 'You';
+                
+                myStatus.innerText = 'speaking';
+                myStatus.className = 'status speaking';
+                myMicIndicator.className = 'fa-solid fa-microphone mic-icon green';
             }
+        }
+
+        // 3. Dynamic Floating Reaction Logic
+        let reactionTimeout;
+        function showReaction(name, avatarLetter, color, messageOrEmoji) {
+            const popup = document.getElementById('reaction-popup');
+            document.getElementById('reaction-avatar').innerText = avatarLetter;
+            document.getElementById('reaction-avatar').style.backgroundColor = color;
+            document.getElementById('reaction-text').innerText = `${name} ${messageOrEmoji}`;
+            
+            // Show popup
+            popup.classList.add('show');
+
+            // Hide after 3 seconds
+            clearTimeout(reactionTimeout);
+            reactionTimeout = setTimeout(() => {
+                popup.classList.remove('show');
+            }, 3000);
+        }
+
+        // Fake reaction for testing (Tap the Message button to test this)
+        function simulateReaction() {
+            const emojis = ['❤️', '🔥', '😂', '👍'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            showReaction('Shivu', 'S', '#b08d57', randomEmoji);
+        }
+
+        // 4. Function to dynamically add a remote user (Will be used later with backend)
+        function addRemoteUser(id, name, status, isMutedByAdmin) {
+            // This is just a placeholder function to show how backend will add users
+            const container = document.getElementById('participants-container');
+            const inviteRow = document.querySelector('.invite-row');
+            
+            const div = document.createElement('div');
+            div.className = 'participant-item';
+            div.id = `user-${id}`;
+            
+            let micClass = isMutedByAdmin ? 'fa-microphone-slash mic-icon red' : 'fa-microphone-slash mic-icon grey';
+            let statusClass = status === 'speaking' ? 'status speaking' : 'status';
+
+            div.innerHTML = `
+                <div class="avatar" style="background-color: #e8a09f;">${name.charAt(0)}</div>
+                <div class="info">
+                    <span class="name">${name}</span>
+                    <span class="${statusClass}">${status}</span>
+                </div>
+                <i class="fa-solid ${micClass}"></i>
+            `;
+            
+            // Insert before the invite row
+            container.insertBefore(div, inviteRow);
+            document.getElementById('participant-count').innerText = (document.querySelectorAll('.participant-item').length) + ' participants';
+        }
+
+        function closeApp() {
+            tg.close();
         }
     </script>
 </body>
