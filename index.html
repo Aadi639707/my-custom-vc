@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Clone VC - Invite Fixed</title>
+    <title>Telegram Clone VC - Buttons Fixed</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -170,9 +170,23 @@
     </form>
 
     <script>
+        // --- SAFE HAPTIC WRAPPER (PREVENTS CRASHES ON CHROME) ---
+        function triggerVibe(style) {
+            try {
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                    let hf = window.Telegram.WebApp.HapticFeedback;
+                    if (style === 'select' && hf.selectionChanged) {
+                        hf.selectionChanged();
+                    } else if (hf.impactOccurred) {
+                        hf.impactOccurred(style);
+                    }
+                }
+            } catch(e) { console.log("Haptics not supported here"); }
+        }
+
         const tg = window.Telegram.WebApp;
-        tg.expand(); tg.setHeaderColor('#181d22');
-        const haptic = tg.HapticFeedback;
+        tg.expand(); 
+        tg.setHeaderColor('#181d22');
 
         function setViewportHeight() { 
             let vh = (tg.viewportHeight || window.innerHeight) * 0.01;
@@ -181,7 +195,9 @@
         tg.onEvent('viewportChanged', setViewportHeight);
         window.addEventListener('resize', setViewportHeight); setViewportHeight();
 
-        const BACKEND_URL = "http://localhost:3000"; 
+        const botUsername = "YourBotUsername"; 
+        const BACKEND_URL = "https://your-server-link-here.onrender.com"; // Use HTTPS to avoid Chrome errors
+        
         const urlParams = new URLSearchParams(window.location.search);
         const currentGroupId = urlParams.get('group_id') || 'global_room';
 
@@ -202,7 +218,7 @@
 
         let toastTimeout;
         function showToast(msg) {
-            if(haptic) haptic.impactOccurred('light');
+            triggerVibe('light'); // Safe vibration call
             const toast = document.getElementById('toast-msg'); toast.innerText = msg; toast.classList.add('show');
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
@@ -254,25 +270,27 @@
         initAgora();
 
         /* --- SOCKET.IO --- */
-        const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
-        const audioPlayer = document.getElementById('bg-audio-player');
-        const musicBanner = document.getElementById('music-banner');
-        const playingTitle = document.getElementById('playing-title');
+        let socket;
+        try {
+            socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
+            socket.on('connect', () => { socket.emit('join_room', `group_${currentGroupId}`); });
+            socket.on('track_changed', (state) => {
+                const audioPlayer = document.getElementById('bg-audio-player');
+                const musicBanner = document.getElementById('music-banner');
+                const playingTitle = document.getElementById('playing-title');
+                if (state.currentTrack) {
+                    musicBanner.style.display = 'flex'; playingTitle.innerText = state.currentTrack.title;
+                    audioPlayer.src = `${BACKEND_URL}/audio_cache/${state.currentTrack.videoId}.m4a`;
+                    audioPlayer.currentTime = state.currentTime;
+                    if (state.isPlaying) audioPlayer.play().catch(e => {});
+                } else { musicBanner.style.display = 'none'; audioPlayer.pause(); audioPlayer.src = ""; }
+            });
+        } catch(e) { console.log("Socket.io not active yet"); }
 
-        socket.on('connect', () => { socket.emit('join_room', `group_${currentGroupId}`); });
-        socket.on('track_changed', (state) => {
-            if (state.currentTrack) {
-                musicBanner.style.display = 'flex'; playingTitle.innerText = state.currentTrack.title;
-                audioPlayer.src = `${BACKEND_URL}/audio_cache/${state.currentTrack.videoId}.m4a`;
-                audioPlayer.currentTime = state.currentTime;
-                if (state.isPlaying) audioPlayer.play().catch(e => {});
-            } else { musicBanner.style.display = 'none'; audioPlayer.pause(); audioPlayer.src = ""; }
-        });
-
-        /* --- CONTROLS & NEW 100% WORKING INVITE LOGIC --- */
+        /* --- CONTROLS --- */
         let isSpeakerHigh = true;
         function toggleSpeaker() {
-            if(haptic) haptic.selectionChanged();
+            triggerVibe('select');
             isSpeakerHigh = !isSpeakerHigh;
             document.getElementById('speaker-icon').className = isSpeakerHigh ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-low';
             showToast(isSpeakerHigh ? "Speaker ON" : "Earpiece ON");
@@ -280,7 +298,7 @@
 
         let isLive = false;
         async function toggleMainMic() {
-            if(haptic) haptic.impactOccurred('medium');
+            triggerVibe('medium');
             isLive = !isLive;
             const btn = document.getElementById('main-mic-btn');
             const icon = document.getElementById('main-mic-icon');
@@ -305,39 +323,25 @@
         }
 
         async function leaveSession() {
+            triggerVibe('heavy');
             if (localAudioTrack) { localAudioTrack.stop(); localAudioTrack.close(); }
-            await agoraClient.leave(); tg.close();
+            await agoraClient.leave(); 
+            tg.close();
         }
 
-        // --- NEW IMPROVED INVITE FUNCTION ---
         function copyInviteLink() {
-            if (haptic) haptic.selectionChanged();
-            
-            // Dynamic URL generate karega jo automatically current room handle karega
+            triggerVibe('select');
             const inviteLink = `${window.location.origin}${window.location.pathname}?group_id=${currentGroupId}`;
-            
-            // Fallback Method for browsers/devices blocking standard clipboard
             const textarea = document.createElement("textarea");
             textarea.value = inviteLink;
-            textarea.style.position = "fixed";  // Avoid scrolling to bottom
+            textarea.style.position = "fixed";
             document.body.appendChild(textarea);
             textarea.select();
-            
             try {
                 var successful = document.execCommand('copy');
-                if(successful) {
-                    showToast("Invite link copied to clipboard!");
-                } else {
-                    // Try standard modern way if execCommand fails
-                    navigator.clipboard.writeText(inviteLink).then(() => {
-                        showToast("Invite link copied!");
-                    });
-                }
-            } catch (err) {
-                // If everything fails, show link inside alert so user can manually copy
-                alert("Copy this link: " + inviteLink);
-            }
-            
+                if(successful) showToast("Invite link copied to clipboard!");
+                else navigator.clipboard.writeText(inviteLink).then(() => showToast("Invite link copied!"));
+            } catch (err) { alert("Copy this link: " + inviteLink); }
             document.body.removeChild(textarea);
         }
 
@@ -355,9 +359,7 @@
 
         function sendMessage(e) {
             e.preventDefault(); const text = chatInput.value.trim(); if(text === '') return;
-            if(haptic) haptic.impactOccurred('light');
+            triggerVibe('light');
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<div class="small-avatar" style="${photoUrl ? 'background-color: transparent;' : 'background-color: var(--tg-blue);'}">
-                ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : currentInitial}</div>
-                <span><b>${currentUser}</b> ${text}</span>`;
-            msgContainer.app
+        
