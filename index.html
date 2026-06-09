@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Clone VC - Live Voice Connect</title>
+    <title>Telegram Clone VC - Invite Fixed</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -181,11 +181,8 @@
         tg.onEvent('viewportChanged', setViewportHeight);
         window.addEventListener('resize', setViewportHeight); setViewportHeight();
 
-        const botUsername = "YourBotUsername"; 
         const BACKEND_URL = "http://localhost:3000"; 
-        
         const urlParams = new URLSearchParams(window.location.search);
-        // group_id URL se read hoga, default room 'global_room' hai
         const currentGroupId = urlParams.get('group_id') || 'global_room';
 
         let currentUser = "User";
@@ -210,7 +207,7 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
 
-        /* --- AGORA REAL-TIME VOICE ENGINE INTEGRATION --- */
+        /* --- AGORA VOICE ENGINE --- */
         const AGORA_APP_ID = "E23e7078cfc44b6cace111e8025c54a8";
         const agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
         let localAudioTrack = null;
@@ -218,11 +215,7 @@
 
         async function initAgora() {
             try {
-                // Testing mode me Token aur UID dono null rhenge
                 await agoraClient.join(AGORA_APP_ID, currentGroupId, null, null);
-                console.log("Agora Connected into Room: " + currentGroupId);
-
-                // Jab koi dusra banda voice stream start karega
                 agoraClient.on("user-published", async (user, mediaType) => {
                     await agoraClient.subscribe(user, mediaType);
                     if (mediaType === "audio") {
@@ -231,18 +224,10 @@
                         renderRemoteUser(user.uid, "User_" + user.uid, true);
                     }
                 });
-
-                // Jab koi mute karega ya leave karega
-                agoraClient.on("user-unpublished", (user) => {
-                    removeRemoteUser(user.uid);
-                });
-
-            } catch (error) {
-                console.error("Agora Voice Sync Failed", error);
-            }
+                agoraClient.on("user-unpublished", (user) => { removeRemoteUser(user.uid); });
+            } catch (error) { console.error("Agora Error", error); }
         }
 
-        // Dynamic Member UI Rendering Functions
         function renderRemoteUser(uid, name, isMuted) {
             if(document.getElementById(`user-${uid}`)) return;
             const list = document.getElementById('participant-list');
@@ -266,10 +251,9 @@
             delete remoteUsers[uid];
         }
 
-        // Run Agora automatically on start
         initAgora();
 
-        /* --- SOCKET.IO MUSIC PLAYER SYNC --- */
+        /* --- SOCKET.IO --- */
         const socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
         const audioPlayer = document.getElementById('bg-audio-player');
         const musicBanner = document.getElementById('music-banner');
@@ -285,7 +269,7 @@
             } else { musicBanner.style.display = 'none'; audioPlayer.pause(); audioPlayer.src = ""; }
         });
 
-        /* --- UI CONTROLS & LIVE MIC SWITCH --- */
+        /* --- CONTROLS & NEW 100% WORKING INVITE LOGIC --- */
         let isSpeakerHigh = true;
         function toggleSpeaker() {
             if(haptic) haptic.selectionChanged();
@@ -298,61 +282,63 @@
         async function toggleMainMic() {
             if(haptic) haptic.impactOccurred('medium');
             isLive = !isLive;
-            
             const btn = document.getElementById('main-mic-btn');
             const icon = document.getElementById('main-mic-icon');
             const listMic = document.getElementById('my-list-mic');
             const statusText = document.getElementById('my-status');
 
             if (isLive) {
-                btn.className = 'control-btn main-mic state-live';
-                icon.className = 'fa-solid fa-microphone';
+                btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
                 listMic.className = 'fa-solid fa-microphone mic-icon green';
-                statusText.innerText = 'speaking';
-                statusText.className = 'status speaking';
-
-                // AGORA: Mic On aur Audio Stream Publish krna
+                statusText.innerText = 'speaking'; statusText.className = 'status speaking';
                 try {
-                    if (!localAudioTrack) {
-                        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                    }
+                    if (!localAudioTrack) { localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack(); }
                     await agoraClient.publish([localAudioTrack]);
                     showToast("Your microphone is live");
-                } catch(err) {
-                    console.error("Mic Access Denied", err);
-                    showToast("Error: Mic permission denied");
-                }
+                } catch(err) { showToast("Mic permission denied"); }
             } else {
-                btn.className = 'control-btn main-mic state-muted';
-                icon.className = 'fa-solid fa-user';
+                btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
                 listMic.className = 'fa-solid fa-microphone-slash mic-icon';
-                statusText.innerText = 'this is you';
-                statusText.className = 'status';
-
-                // AGORA: Unpublish Stream (Mute state)
-                try {
-                    if (localAudioTrack) {
-                        await agoraClient.unpublish([localAudioTrack]);
-                        showToast("Muted");
-                    }
-                } catch(err) {
-                    console.log(err);
-                }
+                statusText.innerText = 'this is you'; statusText.className = 'status';
+                try { if (localAudioTrack) { await agoraClient.unpublish([localAudioTrack]); showToast("Muted"); } } catch(err) {}
             }
         }
 
         async function leaveSession() {
-            if (localAudioTrack) {
-                localAudioTrack.stop();
-                localAudioTrack.close();
-            }
-            await agoraClient.leave();
-            tg.close();
+            if (localAudioTrack) { localAudioTrack.stop(); localAudioTrack.close(); }
+            await agoraClient.leave(); tg.close();
         }
 
+        // --- NEW IMPROVED INVITE FUNCTION ---
         function copyInviteLink() {
-            const inviteLink = `https://${window.location.hostname}${window.location.pathname}?group_id=${currentGroupId}`;
-            navigator.clipboard ? navigator.clipboard.writeText(inviteLink).then(() => showToast("Invite link copied!")) : showToast("Invite: " + inviteLink);
+            if (haptic) haptic.selectionChanged();
+            
+            // Dynamic URL generate karega jo automatically current room handle karega
+            const inviteLink = `${window.location.origin}${window.location.pathname}?group_id=${currentGroupId}`;
+            
+            // Fallback Method for browsers/devices blocking standard clipboard
+            const textarea = document.createElement("textarea");
+            textarea.value = inviteLink;
+            textarea.style.position = "fixed";  // Avoid scrolling to bottom
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                var successful = document.execCommand('copy');
+                if(successful) {
+                    showToast("Invite link copied to clipboard!");
+                } else {
+                    // Try standard modern way if execCommand fails
+                    navigator.clipboard.writeText(inviteLink).then(() => {
+                        showToast("Invite link copied!");
+                    });
+                }
+            } catch (err) {
+                // If everything fails, show link inside alert so user can manually copy
+                alert("Copy this link: " + inviteLink);
+            }
+            
+            document.body.removeChild(textarea);
         }
 
         /* --- CHAT LOGIC --- */
@@ -368,12 +354,10 @@
         document.getElementById('participant-list').addEventListener('click', () => { if(!chatBox.classList.contains('hidden')) closeChat(); });
 
         function sendMessage(e) {
-            e.preventDefault(); 
-            const text = chatInput.value.trim();
-            if(text === '') return;
+            e.preventDefault(); const text = chatInput.value.trim(); if(text === '') return;
             if(haptic) haptic.impactOccurred('light');
-
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<div class="small-avatar" style="${photoUrl ? 'background-color: transparent;' : 'background-color: var(--tg-blue);'}">
                 ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : currentInitial}</div>
-   
+                <span><b>${currentUser}</b> ${text}</span>`;
+            msgContainer.app
