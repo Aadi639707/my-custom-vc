@@ -3,196 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Telegram Secure VC</title>
-    <!-- Telegram Web App API -->
+    <title>Telegram Clone VC</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: var(--tg-theme-bg-color, #1c1c1d); /* Telegram Dark Theme */
-            color: var(--tg-theme-text-color, #ffffff);
+            background-color: #121619; /* Exact TG Dark Background */
+            color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            overflow: hidden;
         }
 
-        .header {
-            padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .header h2 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .header p {
-            margin: 5px 0 0;
-            font-size: 14px;
-            color: #8e8e93;
-        }
-
-        .participants-grid {
-            flex: 1;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 20px;
-            padding: 20px;
-            overflow-y: auto;
-            align-content: start;
-        }
-
-        .participant {
+        /* Top Header */
+        .top-header {
             display: flex;
-            flex-direction: column;
             align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background-color: #181d22;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .title-area h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .title-area p {
+            margin: 2px 0 0;
+            font-size: 13px;
+            color: #8b959d;
+        }
+
+        .header-icons i {
+            font-size: 18px;
+            margin-left: 20px;
+            color: #ffffff;
+        }
+
+        /* Participant List */
+        .participant-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .participant-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            transition: background 0.2s;
+        }
+
+        .participant-item:active {
+            background-color: #20262b;
         }
 
         .avatar {
-            width: 80px;
-            height: 80px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
-            background-color: #3478f6;
+            background-color: #3f729b;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 32px;
+            font-size: 18px;
             font-weight: bold;
-            color: white;
-            position: relative;
-            box-shadow: 0 0 15px rgba(52, 120, 246, 0.4); /* Speaking glowing effect */
+            margin-right: 15px;
         }
 
-        /* Mic indicator */
-        .mic-status {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            background-color: #34c759;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
+        .info {
+            flex: 1;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            border: 2px solid #1c1c1d;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .mic-status.muted {
-            background-color: #ff3b30;
-        }
-
-        .participant-name {
-            margin-top: 10px;
-            font-size: 14px;
-            text-align: center;
+        .name {
+            font-size: 16px;
+            font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            width: 100%;
         }
 
-        .controls {
-            padding: 20px;
+        .status {
+            font-size: 13px;
+            color: #8b959d; /* Default Grey */
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status.speaking { color: #34c759; } /* Green */
+        .status.listening { color: #3facf0; } /* Blue */
+
+        .mic-icon {
+            font-size: 16px;
+        }
+
+        .mic-icon.red { color: #ff3b30; }
+        .mic-icon.green { color: #34c759; }
+        .mic-icon.grey { color: #5a646c; }
+
+        /* Invite Members Row */
+        .invite-row {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: #8b959d;
+            font-size: 16px;
+        }
+
+        .invite-row i {
+            font-size: 20px;
+            margin-right: 25px;
+            margin-left: 10px;
+        }
+
+        /* Floating Speaker Indicator */
+        .floating-speaker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background: linear-gradient(to top, #181d22, transparent);
+        }
+
+        .floating-speaker .small-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        /* Bottom Controls */
+        .bottom-controls {
             display: flex;
             justify-content: space-around;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            align-items: center;
+            padding: 15px 10px 25px 10px;
+            background-color: #181d22;
         }
 
-        .btn {
-            width: 60px;
-            height: 60px;
+        .control-btn-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn {
+            width: 55px;
+            height: 55px;
             border-radius: 50%;
             border: none;
             outline: none;
-            cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
-            transition: transform 0.2s;
-        }
-
-        .btn:active {
-            transform: scale(0.9);
-        }
-
-        .btn-mute {
-            background-color: #3478f6;
+            font-size: 22px;
             color: white;
+            cursor: pointer;
+            background-color: #2b3a4a; /* TG Blue Muted */
         }
 
-        .btn-leave {
+        .control-btn.leave {
             background-color: #ff3b30;
-            color: white;
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: #ffffff;
+        }
+
+        /* Glow effect for main mic button */
+        .main-mic {
+            box-shadow: 0 0 0 4px rgba(63, 172, 240, 0.2);
+            background-color: #3facf0;
+        }
+        
+        .main-mic.muted-state {
+            background-color: #2b3a4a;
+            box-shadow: none;
         }
 
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h2>Secure Group VC</h2>
-        <p id="user-status">1 participant</p>
-    </div>
-
-    <div class="participants-grid" id="grid">
-        <!-- Main User Avatar -->
-        <div class="participant">
-            <div class="avatar" id="my-avatar">
-                U
-                <div class="mic-status" id="my-mic-icon">🎤</div>
+    <div class="top-header">
+        <div class="header-left">
+            <i class="fa-solid fa-arrow-left"></i>
+            <div class="title-area">
+                <h2>Song_wale</h2>
+                <p>9 participants</p>
             </div>
-            <div class="participant-name" id="my-name">You</div>
+        </div>
+        <div class="header-icons">
+            <i class="fa-solid fa-tv"></i>
+            <i class="fa-solid fa-ellipsis-vertical"></i>
         </div>
     </div>
 
-    <div class="controls">
-        <button class="btn btn-mute" id="mute-btn" onclick="toggleMute()">🎙️</button>
-        <button class="btn btn-leave" onclick="leaveVC()">❌</button>
+    <div class="participant-list" id="participants">
+        
+        <div class="participant-item">
+            <div class="avatar" style="background-color: #e8a09f;">L</div>
+            <div class="info">
+                <span class="name">Leya Music Bot - Assistant</span>
+                <span class="status speaking">speaking</span>
+            </div>
+            <i class="fa-solid fa-microphone mic-icon green"></i>
+        </div>
+
+        <div class="participant-item">
+            <div class="avatar" id="my-avatar" style="background-color: #3facf0;">U</div>
+            <div class="info">
+                <span class="name" id="my-name">You</span>
+                <span class="status listening">this is you</span>
+            </div>
+            <i class="fa-solid fa-microphone-slash mic-icon red"></i>
+        </div>
+
+        <div class="participant-item">
+            <div class="avatar" style="background-color: #b08d57;">M</div>
+            <div class="info">
+                <span class="name">Mishu ♡︎</span>
+                <span class="status">The next chapter is called Mine 🥂...</span>
+            </div>
+            <i class="fa-solid fa-microphone-slash mic-icon grey"></i>
+        </div>
+
+        <div class="invite-row">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Invite Members</span>
+        </div>
+
+    </div>
+
+    <div class="floating-speaker">
+        <div class="small-avatar" style="background-color: #b08d57; display: flex; justify-content: center; align-items: center; font-size: 10px;">M</div>
+        <span style="font-size: 14px; font-weight: 500;">Mishu ♡︎ ❤️</span>
+    </div>
+
+    <div class="bottom-controls">
+        <div class="control-btn-wrap">
+            <button class="control-btn"><i class="fa-solid fa-volume-high"></i></button>
+            <span class="control-label">Speaker</span>
+        </div>
+        
+        <div class="control-btn-wrap">
+            <button class="control-btn main-mic muted-state" id="main-mic-btn" onclick="toggleMainMic()">
+                <i class="fa-solid fa-microphone-slash" id="main-mic-icon"></i>
+            </button>
+            <span class="control-label" id="main-mic-label">Muted</span>
+        </div>
+
+        <div class="control-btn-wrap">
+            <button class="control-btn"><i class="fa-solid fa-comment-dots"></i></button>
+            <span class="control-label">Message</span>
+        </div>
+
+        <div class="control-btn-wrap">
+            <button class="control-btn leave" onclick="tg.close()"><i class="fa-solid fa-phone-slash"></i></button>
+            <span class="control-label">Leave</span>
+        </div>
     </div>
 
     <script>
-        // Telegram Web App Initialization
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Open in full height
+        tg.expand(); 
+        tg.setHeaderColor('#181d22'); // Match header color
 
-        // Fetch User Info from Telegram
+        // Fetch Real User Data
         const user = tg.initDataUnsafe?.user;
         if (user) {
             document.getElementById('my-name').innerText = user.first_name;
-            document.getElementById('my-avatar').innerText = user.first_name.charAt(0);
+            document.getElementById('my-avatar').innerText = user.first_name.charAt(0).toUpperCase();
         }
 
-        // Mute/Unmute Logic (Visual for now)
-        let isMuted = false;
-        function toggleMute() {
+        // Main Mic Button Logic
+        let isMuted = true;
+        function toggleMainMic() {
             isMuted = !isMuted;
-            const muteBtn = document.getElementById('mute-btn');
-            const micIcon = document.getElementById('my-mic-icon');
-            
-            if (isMuted) {
-                muteBtn.style.backgroundColor = '#ff3b30';
-                muteBtn.innerText = '🔇';
-                micIcon.classList.add('muted');
-                micIcon.innerText = '🔇';
-            } else {
-                muteBtn.style.backgroundColor = '#3478f6';
-                muteBtn.innerText = '🎙️';
-                micIcon.classList.remove('muted');
-                micIcon.innerText = '🎤';
-            }
-        }
+            const btn = document.getElementById('main-mic-btn');
+            const icon = document.getElementById('main-mic-icon');
+            const label = document.getElementById('main-mic-label');
 
-        function leaveVC() {
-            tg.close(); // Close the mini app and return to chat
+            if (isMuted) {
+                btn.classList.add('muted-state');
+                icon.className = 'fa-solid fa-microphone-slash';
+                label.innerText = 'Muted';
+            } else {
+                btn.classList.remove('muted-state');
+                icon.className = 'fa-solid fa-user'; // Simple user icon when active, like in the screenshot
+                label.innerText = 'You';
+            }
         }
     </script>
 </body>
-              </html>
-              
+</html>
