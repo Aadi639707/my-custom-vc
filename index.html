@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Clone VC - MultiGroup</title>
+    <title>Telegram Clone VC - Final Fix</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -13,11 +13,11 @@
             --btn-dark: #2b3a4a;
             --text-grey: #8b959d;
             --tg-blue: #3facf0;
+            --tg-green: #34c759;
             --tg-red: #ff3b30;
             --dialog-bg: #1c1c1e;
         }
 
-        /* Removes the ugly blue/grey tap box on mobile */
         * {
             -webkit-tap-highlight-color: transparent;
             box-sizing: border-box;
@@ -107,7 +107,10 @@
 
         .name { font-size: 16px; font-weight: 500; }
         .status { font-size: 13px; color: var(--tg-blue); margin-top: 2px; }
+        .status.speaking { color: var(--tg-green); } /* Green status when speaking */
+        
         .mic-icon { font-size: 18px; color: var(--text-grey); }
+        .mic-icon.green { color: var(--tg-green); } /* Green mic when speaking */
 
         /* Invite Row */
         .invite-row {
@@ -131,7 +134,7 @@
         /* Floating Messages Container */
         .floating-messages {
             position: absolute;
-            bottom: 100px;
+            bottom: 120px;
             left: 15px;
             display: flex;
             flex-direction: column;
@@ -169,12 +172,13 @@
 
         .msg-bubble span { font-size: 14px; color: white; }
 
-        /* Bottom Controls */
+        /* Bottom Controls Fixed for Cut-off */
         .bottom-controls {
             display: flex;
             justify-content: space-around;
             align-items: center;
-            padding: 15px 10px 25px 10px;
+            /* Added env(safe-area-inset-bottom) and 40px base to lift buttons */
+            padding: 15px 10px max(40px, env(safe-area-inset-bottom)) 10px;
             background-color: transparent;
             position: absolute;
             bottom: 0;
@@ -206,14 +210,13 @@
             transition: transform 0.15s ease, background 0.2s;
         }
 
-        /* Smooth press animation for all buttons */
         .control-btn:active { transform: scale(0.88); }
 
         .control-btn.leave { background-color: var(--tg-red); font-size: 26px; }
         
         .main-mic { width: 65px; height: 65px; font-size: 26px; transition: background 0.2s, transform 0.15s;}
         .main-mic.state-muted { background-color: var(--btn-dark); }
-        .main-mic.state-live { background-color: #34c759; }
+        .main-mic.state-live { background-color: var(--tg-green); }
 
         /* Chat Input Area */
         .chat-input-area {
@@ -221,7 +224,7 @@
             bottom: 0;
             width: 100%;
             background-color: #1c1c1d;
-            padding: 10px 15px;
+            padding: 10px 15px max(20px, env(safe-area-inset-bottom)) 15px;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -262,10 +265,10 @@
         }
         .send-btn:active { transform: scale(0.9); }
 
-        /* Telegram Style Toast Message */
+        /* Toast Message */
         .tg-toast {
             position: fixed;
-            bottom: 120px;
+            bottom: 140px;
             left: 50%;
             transform: translateX(-50%) scale(0.9);
             background-color: rgba(0, 0, 0, 0.8);
@@ -283,7 +286,7 @@
             transform: translateX(-50%) scale(1);
         }
 
-        /* Leave Confirmation Dialog */
+        /* Leave Dialog */
         .dialog-overlay {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -296,7 +299,6 @@
             transition: opacity 0.2s;
             z-index: 50;
         }
-
         .dialog-overlay.show { opacity: 1; pointer-events: auto; }
 
         .dialog-box {
@@ -305,28 +307,11 @@
             border-radius: 12px;
             padding: 20px;
         }
-
         .dialog-box h3 { margin: 0 0 10px 0; font-size: 18px; }
         .dialog-box p { margin: 0 0 20px 0; color: var(--text-grey); font-size: 14px; line-height: 1.4; }
-        
-        .dialog-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 20px;
-        }
-
-        .dialog-actions button {
-            background: none;
-            border: none;
-            font-size: 16px;
-            font-weight: 500;
-            color: var(--tg-blue);
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .dialog-actions button:active { opacity: 0.6; }
+        .dialog-actions { display: flex; justify-content: flex-end; gap: 20px; }
+        .dialog-actions button { background: none; border: none; font-size: 16px; font-weight: 500; color: var(--tg-blue); cursor: pointer; }
         .dialog-actions button.leave-red { color: var(--tg-red); }
-
     </style>
 </head>
 <body>
@@ -346,16 +331,15 @@
     </div>
 
     <div class="participant-list">
-        
         <div class="participant-item">
             <div class="avatar" id="my-avatar-container" style="background-color: var(--tg-blue);">
                 <span id="my-avatar-text">U</span>
             </div>
             <div class="info">
                 <span class="name" id="my-name">User</span>
-                <span class="status">this is you</span>
+                <span class="status" id="my-status">this is you</span>
             </div>
-            <i class="fa-solid fa-microphone-slash mic-icon"></i>
+            <i class="fa-solid fa-microphone-slash mic-icon" id="my-list-mic"></i>
         </div>
 
         <div class="invite-row" onclick="copyInviteLink()">
@@ -406,21 +390,18 @@
         const tg = window.Telegram.WebApp;
         tg.expand(); 
         tg.setHeaderColor('#181d22');
-        
-        // Haptic Feedback for real feel
         const haptic = tg.HapticFeedback;
 
-        // MULTI-GROUP LOGIC (Reads group_id from URL)
+        // **यहाँ अपना असली बोट यूज़रनेम डालें** (बिना @ के)
+        const botUsername = "YourBotUsername"; 
+
         const urlParams = new URLSearchParams(window.location.search);
         const currentGroupId = urlParams.get('group_id') || 'Unknown';
-        // In the future, your Agora/LiveKit backend will use `currentGroupId` to connect to the right room.
 
-        // User Variables
         let currentUser = "User";
         let currentInitial = "U";
         let photoUrl = null;
 
-        // Fetch Real User Data
         const user = tg.initDataUnsafe?.user;
         if (user) {
             currentUser = user.first_name;
@@ -438,10 +419,9 @@
             }
         }
 
-        // Toast Notification Function
         let toastTimeout;
         function showToast(msg) {
-            haptic.impactOccurred('light');
+            if(haptic) haptic.impactOccurred('light');
             const toast = document.getElementById('toast-msg');
             toast.innerText = msg;
             toast.classList.add('show');
@@ -449,10 +429,9 @@
             toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
 
-        // Speaker Toggle Logic
         let isSpeakerHigh = true;
         function toggleSpeaker() {
-            haptic.selectionChanged();
+            if(haptic) haptic.selectionChanged();
             isSpeakerHigh = !isSpeakerHigh;
             const icon = document.getElementById('speaker-icon');
             if(isSpeakerHigh) {
@@ -464,34 +443,50 @@
             }
         }
 
-        // Mic Toggle Logic
+        // Updated Mic Logic with Name List Sync
         let isLive = false;
         function toggleMainMic() {
-            haptic.impactOccurred('medium');
+            if(haptic) haptic.impactOccurred('medium');
             isLive = !isLive;
+            
+            // Main Bottom Button
             const btn = document.getElementById('main-mic-btn');
             const icon = document.getElementById('main-mic-icon');
+            
+            // Top List Elements
+            const listMic = document.getElementById('my-list-mic');
+            const statusText = document.getElementById('my-status');
+
             if (isLive) {
                 btn.className = 'control-btn main-mic state-live';
                 icon.className = 'fa-solid fa-microphone';
+                
+                // Sync List View to Green & Speaking
+                listMic.className = 'fa-solid fa-microphone mic-icon green';
+                statusText.innerText = 'speaking';
+                statusText.className = 'status speaking';
             } else {
                 btn.className = 'control-btn main-mic state-muted';
                 icon.className = 'fa-solid fa-user';
+                
+                // Sync List View back to Grey & this is you
+                listMic.className = 'fa-solid fa-microphone-slash mic-icon';
+                statusText.innerText = 'this is you';
+                statusText.className = 'status';
             }
         }
 
-        // Copy Invite Link
         function copyInviteLink() {
-            // Later, replace this with the real bot generated link for `currentGroupId`
-            const dummyLink = `https://t.me/YourBotName?start=${currentGroupId}`;
-            navigator.clipboard.writeText(dummyLink).then(() => {
-                showToast("Link copied to clipboard.");
-            }).catch(err => {
-                showToast("Failed to copy link.");
-            });
+            const inviteLink = `https://t.me/${botUsername}?start=${currentGroupId}`;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(inviteLink).then(() => {
+                    showToast("Link copied to clipboard.");
+                });
+            } else {
+                showToast("Invite Link: " + inviteLink);
+            }
         }
 
-        // Chat Logic
         const chatBox = document.getElementById('chat-box');
         const mainControls = document.getElementById('main-controls');
         const chatInput = document.getElementById('chat-input');
@@ -499,14 +494,14 @@
         const msgContainer = document.getElementById('message-container');
 
         function openChat() {
-            haptic.selectionChanged();
+            if(haptic) haptic.selectionChanged();
             mainControls.classList.add('hide');
             chatBox.classList.add('show');
             chatInput.focus();
         }
 
         function closeChat() {
-            haptic.selectionChanged();
+            if(haptic) haptic.selectionChanged();
             chatBox.classList.remove('show');
             mainControls.classList.remove('hide');
         }
@@ -518,7 +513,7 @@
         function sendMessage() {
             const text = chatInput.value.trim();
             if(text === '') return;
-            haptic.impactOccurred('light');
+            if(haptic) haptic.impactOccurred('light');
 
             let bubbleAvatarHTML = photoUrl 
                 ? `<img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;">` 
@@ -544,23 +539,19 @@
             }, 4000);
         }
 
-        // Leave Dialog Logic
         const leaveDialog = document.getElementById('leave-dialog');
         function openLeaveDialog() { 
-            haptic.impactOccurred('medium');
+            if(haptic) haptic.impactOccurred('medium');
             leaveDialog.classList.add('show'); 
         }
         function closeLeaveDialog() { 
-            haptic.selectionChanged();
+            if(haptic) haptic.selectionChanged();
             leaveDialog.classList.remove('show'); 
         }
         
         function triggerLeave() {
-            haptic.impactOccurred('heavy');
-            // This natively closes the Telegram Mini App
+            if(haptic) haptic.impactOccurred('heavy');
             tg.close();
-            // Fallback for normal browsers just in case
-            window.close();
         }
 
     </script>
