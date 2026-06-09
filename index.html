@@ -425,4 +425,18 @@
             safeHaptic('light');
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<div class="small-avatar" style="${photoUrl ? 'background-color: transparent;' : 'background-color: var(--tg-blue);'}">
-                ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; heigh
+                ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; heigh: 100%; object-fit: cover;">` : currentInitial}</div>
+                <span><b>${currentUser}</b> ${text}</span>`;
+            
+            msgContainer.appendChild(bubble); 
+            chatInput.value = ''; 
+            closeChat();
+            
+            setTimeout(() => { 
+                bubble.style.opacity = '0'; 
+                setTimeout(() => bubble.remove(), 300); 
+            }, 4000);
+        }
+    </script>
+</body>
+</html
