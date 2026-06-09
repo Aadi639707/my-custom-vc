@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Clone VC - Buttons Fixed</title>
+    <title>Telegram Clone VC - Free Call</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="https://download.agora.io/sdk/web/AgoraRTC_N-4.22.0.js"></script>
+    
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
 
     <style>
         :root {
@@ -34,17 +34,6 @@
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
         .header-icons { display: flex; gap: 20px; }
         .header-icons i { font-size: 20px; color: var(--text-grey); cursor: pointer; }
-
-        /* Music Banner */
-        .music-banner {
-            background-color: rgba(63, 172, 240, 0.1); border-left: 3px solid var(--tg-blue);
-            padding: 10px 20px; display: none; align-items: center; gap: 15px; animation: slideDown 0.3s ease;
-        }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .music-banner .music-icon { width: 40px; height: 40px; border-radius: 8px; background-color: var(--tg-blue); display: flex; justify-content: center; align-items: center; font-size: 18px; color: white; }
-        .music-banner .music-info { flex: 1; overflow: hidden; }
-        .music-banner .music-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .music-banner .music-status { font-size: 12px; color: var(--tg-blue); margin-top: 2px; }
 
         /* Participant List */
         .participant-list { flex: 1; overflow-y: auto; padding: 0; padding-bottom: 90px; scroll-behavior: smooth; }
@@ -102,26 +91,16 @@
 </head>
 <body>
 
-    <audio id="bg-audio-player" style="display: none;"></audio>
     <div class="tg-toast" id="toast-msg">Notification</div>
 
     <div class="top-header">
         <div class="header-left">
-            <div class="title-area"><h2 id="vc-title">Video Chat</h2></div>
+            <div class="title-area"><h2 id="vc-title">Voice Chat</h2></div>
         </div>
         <div class="header-icons">
             <i class="fa-solid fa-desktop" onclick="showToast('Screen sharing not active')"></i>
             <i class="fa-solid fa-ellipsis-vertical" onclick="showToast('Menu opened')"></i>
         </div>
-    </div>
-
-    <div class="music-banner" id="music-banner">
-        <div class="music-icon"><i class="fa-solid fa-music"></i></div>
-        <div class="music-info">
-            <div class="music-title" id="playing-title">Song Name</div>
-            <div class="music-status">Now Playing 🎵</div>
-        </div>
-        <i class="fa-solid fa-forward-step" style="font-size: 20px; cursor:pointer;" onclick="requestSkip()"></i>
     </div>
 
     <div class="participant-list" id="participant-list">
@@ -170,23 +149,10 @@
     </form>
 
     <script>
-        // --- SAFE HAPTIC WRAPPER (PREVENTS CRASHES ON CHROME) ---
-        function triggerVibe(style) {
-            try {
-                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
-                    let hf = window.Telegram.WebApp.HapticFeedback;
-                    if (style === 'select' && hf.selectionChanged) {
-                        hf.selectionChanged();
-                    } else if (hf.impactOccurred) {
-                        hf.impactOccurred(style);
-                    }
-                }
-            } catch(e) { console.log("Haptics not supported here"); }
-        }
-
         const tg = window.Telegram.WebApp;
         tg.expand(); 
         tg.setHeaderColor('#181d22');
+        const haptic = tg.HapticFeedback;
 
         function setViewportHeight() { 
             let vh = (tg.viewportHeight || window.innerHeight) * 0.01;
@@ -195,12 +161,7 @@
         tg.onEvent('viewportChanged', setViewportHeight);
         window.addEventListener('resize', setViewportHeight); setViewportHeight();
 
-        const botUsername = "YourBotUsername"; 
-        const BACKEND_URL = "https://your-server-link-here.onrender.com"; // Use HTTPS to avoid Chrome errors
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentGroupId = urlParams.get('group_id') || 'global_room';
-
+        // TELEGRAM USER DATA
         let currentUser = "User";
         let currentInitial = "U";
         let photoUrl = null;
@@ -218,32 +179,91 @@
 
         let toastTimeout;
         function showToast(msg) {
-            triggerVibe('light'); // Safe vibration call
+            try { if(haptic) haptic.impactOccurred('light'); } catch(e){}
             const toast = document.getElementById('toast-msg'); toast.innerText = msg; toast.classList.add('show');
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
 
-        /* --- AGORA VOICE ENGINE --- */
-        const AGORA_APP_ID = "007eJxTYFgtmeRt//mwXskab6nY8nnXTH0nX2vT8zD8+WjLbfYXfw4oMJimGaUkGxuaGpgZWppYpJommqRZmloaWhgkJqVZJiYl9phrZDUEMjJkpcxlZGSAQBCfmyE9Jz8pMSe+KD8/l4EBAFHTIpQ=";
-        const agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-        let localAudioTrack = null;
-        let remoteUsers = {};
+        /* --- PEER JS VOICE ENGINE (0 API Key Required) --- */
+        let peer;
+        let myPeerId = null;
+        let localStream = null;
+        let isLive = false;
+        
+        // Setup Peer Connection
+        function initVoiceChat() {
+            peer = new Peer(); // Auto-connects to free public server
 
-        async function initAgora() {
-            try {
-                await agoraClient.join(AGORA_APP_ID, currentGroupId, null, null);
-                agoraClient.on("user-published", async (user, mediaType) => {
-                    await agoraClient.subscribe(user, mediaType);
-                    if (mediaType === "audio") {
-                        user.audioTrack.play();
-                        remoteUsers[user.uid] = user;
-                        renderRemoteUser(user.uid, "User_" + user.uid, true);
-                    }
+            peer.on('open', function(id) {
+                myPeerId = id;
+                console.log('My ID is: ' + id);
+                showToast("Connected to Voice Server!");
+
+                // Check if joining someone else's room
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomToJoin = urlParams.get('room');
+                
+                if (roomToJoin) {
+                    // Start Mic automatically for guest and call the host
+                    startMicAndCall(roomToJoin);
+                }
+            });
+
+            // When someone calls us
+            peer.on('call', function(call) {
+                // Answer automatically if we have a mic, otherwise answer without mic
+                if (localStream) {
+                    call.answer(localStream);
+                } else {
+                    // Try to get mic silently to answer
+                    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                        localStream = stream;
+                        syncMicUI(false); // keep UI muted visually but stream is active (audio track disabled)
+                        localStream.getAudioTracks()[0].enabled = false;
+                        call.answer(localStream);
+                    }).catch(err => {
+                        console.log("No mic available to answer");
+                    });
+                }
+                
+                // Handle the remote stream
+                call.on('stream', function(remoteStream) {
+                    playRemoteStream(remoteStream, call.peer);
                 });
-                agoraClient.on("user-unpublished", (user) => { removeRemoteUser(user.uid); });
-            } catch (error) { console.error("Agora Error", error); }
+                call.on('close', function() { removeRemoteUser(call.peer); });
+            });
         }
 
+        // Play remote audio
+        function playRemoteStream(remoteStream, peerId) {
+            if(!document.getElementById('audio-' + peerId)) {
+                const audioObj = document.createElement('audio');
+                audioObj.id = 'audio-' + peerId;
+                audioObj.srcObject = remoteStream;
+                audioObj.autoplay = true;
+                document.body.appendChild(audioObj);
+                
+                // Show in UI
+                renderRemoteUser(peerId, "Friend_" + peerId.substring(0,4), true);
+            }
+        }
+
+        // Call the Host
+        function startMicAndCall(hostId) {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                localStream = stream;
+                localStream.getAudioTracks()[0].enabled = false; // Muted by default
+                
+                const call = peer.call(hostId, localStream);
+                call.on('stream', function(remoteStream) {
+                    playRemoteStream(remoteStream, hostId);
+                });
+            }).catch(err => {
+                showToast("Please allow microphone access");
+            });
+        }
+
+        // Render Guest in UI
         function renderRemoteUser(uid, name, isMuted) {
             if(document.getElementById(`user-${uid}`)) return;
             const list = document.getElementById('participant-list');
@@ -251,12 +271,12 @@
             row.className = 'participant-item';
             row.id = `user-${uid}`;
             row.innerHTML = `
-                <div class="avatar" style="background-color: #e8a09f;"><span>${name.charAt(0)}</span></div>
+                <div class="avatar" style="background-color: #ff8e8e;"><span>${name.charAt(0)}</span></div>
                 <div class="info">
                     <span class="name">${name}</span>
-                    <span class="status ${!isMuted ? 'speaking' : ''}" id="status-${uid}">${!isMuted ? 'speaking' : 'listening'}</span>
+                    <span class="status speaking" id="status-${uid}">listening</span>
                 </div>
-                <i class="fa-solid ${isMuted ? 'fa-microphone-slash' : 'fa-microphone green'} mic-icon" id="mic-${uid}"></i>
+                <i class="fa-solid fa-microphone green mic-icon" id="mic-${uid}"></i>
             `;
             list.insertBefore(row, list.lastElementChild);
         }
@@ -264,74 +284,84 @@
         function removeRemoteUser(uid) {
             const el = document.getElementById(`user-${uid}`);
             if(el) el.remove();
-            delete remoteUsers[uid];
+            const audioEl = document.getElementById('audio-' + uid);
+            if(audioEl) audioEl.remove();
         }
 
-        initAgora();
+        // Start Engine
+        initVoiceChat();
 
-        /* --- SOCKET.IO --- */
-        let socket;
-        try {
-            socket = io(BACKEND_URL, { transports: ['websocket', 'polling'] });
-            socket.on('connect', () => { socket.emit('join_room', `group_${currentGroupId}`); });
-            socket.on('track_changed', (state) => {
-                const audioPlayer = document.getElementById('bg-audio-player');
-                const musicBanner = document.getElementById('music-banner');
-                const playingTitle = document.getElementById('playing-title');
-                if (state.currentTrack) {
-                    musicBanner.style.display = 'flex'; playingTitle.innerText = state.currentTrack.title;
-                    audioPlayer.src = `${BACKEND_URL}/audio_cache/${state.currentTrack.videoId}.m4a`;
-                    audioPlayer.currentTime = state.currentTime;
-                    if (state.isPlaying) audioPlayer.play().catch(e => {});
-                } else { musicBanner.style.display = 'none'; audioPlayer.pause(); audioPlayer.src = ""; }
-            });
-        } catch(e) { console.log("Socket.io not active yet"); }
-
-        /* --- CONTROLS --- */
-        let isSpeakerHigh = true;
-        function toggleSpeaker() {
-            triggerVibe('select');
-            isSpeakerHigh = !isSpeakerHigh;
-            document.getElementById('speaker-icon').className = isSpeakerHigh ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-low';
-            showToast(isSpeakerHigh ? "Speaker ON" : "Earpiece ON");
-        }
-
-        let isLive = false;
+        /* --- MIC TOGGLE LOGIC --- */
         async function toggleMainMic() {
-            triggerVibe('medium');
+            try { if(haptic) haptic.impactOccurred('medium'); } catch(e){}
             isLive = !isLive;
+
+            if (isLive) {
+                // If stream doesn't exist, get it
+                if (!localStream) {
+                    try {
+                        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        syncMicUI(true);
+                    } catch(err) {
+                        isLive = false;
+                        showToast("Mic Permission Denied!");
+                    }
+                } else {
+                    localStream.getAudioTracks()[0].enabled = true;
+                    syncMicUI(true);
+                }
+            } else {
+                if (localStream) localStream.getAudioTracks()[0].enabled = false;
+                syncMicUI(false);
+            }
+        }
+
+        function syncMicUI(live) {
             const btn = document.getElementById('main-mic-btn');
             const icon = document.getElementById('main-mic-icon');
             const listMic = document.getElementById('my-list-mic');
             const statusText = document.getElementById('my-status');
 
-            if (isLive) {
+            if (live) {
                 btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
                 listMic.className = 'fa-solid fa-microphone mic-icon green';
                 statusText.innerText = 'speaking'; statusText.className = 'status speaking';
-                try {
-                    if (!localAudioTrack) { localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack(); }
-                    await agoraClient.publish([localAudioTrack]);
-                    showToast("Your microphone is live");
-                } catch(err) { showToast("Mic permission denied"); }
             } else {
                 btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
                 listMic.className = 'fa-solid fa-microphone-slash mic-icon';
                 statusText.innerText = 'this is you'; statusText.className = 'status';
-                try { if (localAudioTrack) { await agoraClient.unpublish([localAudioTrack]); showToast("Muted"); } } catch(err) {}
             }
         }
 
-        async function leaveSession() {
-            triggerVibe('heavy');
-            if (localAudioTrack) { localAudioTrack.stop(); localAudioTrack.close(); }
-            await agoraClient.leave(); 
+        let isSpeakerHigh = true;
+        function toggleSpeaker() {
+            try { if(haptic) haptic.selectionChanged(); } catch(e){}
+            isSpeakerHigh = !isSpeakerHigh;
+            document.getElementById('speaker-icon').className = isSpeakerHigh ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-low';
+            showToast(isSpeakerHigh ? "Speaker ON" : "Earpiece ON");
+        }
+
+        function leaveSession() {
+            try { if(haptic) haptic.impactOccurred('heavy'); } catch(e){}
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peer) peer.destroy();
             tg.close();
         }
 
+        // --- INVITE LINK (PEER JS ROOM LOGIC) ---
         function copyInviteLink() {
-            triggerVibe('select');
-            const inviteLink = `${window.location.origin}${window.location.pathname}?group_id=${currentGroupId}`;
+            try { if(haptic) haptic.selectionChanged(); } catch(e){}
+            
+            if(!myPeerId) {
+                showToast("Connecting to server, please wait...");
+                return;
+            }
+
+            // Generate link with the current Host's Peer ID
+            const inviteLink = `${window.location.origin}${window.location.pathname}?room=${myPeerId}`;
+            
             const textarea = document.createElement("textarea");
             textarea.value = inviteLink;
             textarea.style.position = "fixed";
@@ -359,7 +389,10 @@
 
         function sendMessage(e) {
             e.preventDefault(); const text = chatInput.value.trim(); if(text === '') return;
-            triggerVibe('light');
+            try { if(haptic) haptic.impactOccurred('light'); } catch(e){}
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<div class="small-avatar" style="${photoUrl ? 'background-color: transparent;' : 'background-color: var(--tg-blue);'}">
-        
+                ${photoUrl ? `<img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : currentInitial}</div>
+                <span><b>${currentUser}</b> ${text}</span>`;
+            msgContainer.appendChild(bubble); chatInput.value = ''; closeChat();
+            setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 300);
