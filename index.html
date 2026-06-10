@@ -353,11 +353,12 @@
             msgContainer.appendChild(bubble); setTimeout(() => bubble.remove(), 5000);
         }
 
-        // 5. INVITE & LEAVE SYSTEM - FIXED VERSION
+        // 5. INVITE & LEAVE SYSTEM - CORRECT FIX
         function copyInviteLink() {
-            // Ensure ROOM_ID is captured in the hash before copying
-            const link = window.location.origin + window.location.pathname + "#room=" + ROOM_ID.split('_')[2];
-            navigator.clipboard.writeText(link).then(() => showToast("Room Link Copied! Share it to invite."));
+            // Get the current hash directly from the URL (already contains #room=X)
+            const currentHash = window.location.hash;
+            const link = window.location.origin + window.location.pathname + currentHash;
+            navigator.clipboard.writeText(link).then(() => showToast("Link Copied! Share with friends."));
         }
 
         function leaveSession() {
