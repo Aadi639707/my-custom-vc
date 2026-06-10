@@ -7,7 +7,6 @@
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
 
     <style>
@@ -29,17 +28,16 @@
 
         .hidden { display: none !important; }
 
-        /* Top Header */
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
         .header-left { display: flex; align-items: center; gap: 15px; }
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
         .header-icons { display: flex; gap: 20px; }
         .header-icons i { font-size: 20px; color: var(--text-grey); cursor: pointer; }
 
-        /* Participant List */
         .participant-list { flex: 1; overflow-y: auto; padding: 0; padding-bottom: 90px; scroll-behavior: smooth; }
         .participant-item { display: flex; align-items: center; padding: 10px 20px; background-color: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .avatar { width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; margin-right: 15px; overflow: hidden; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; margin-right: 15px; overflow: hidden; transition: 0.3s; border: 2px solid transparent; }
+        .avatar.speaking { border-color: var(--tg-green); box-shadow: 0 0 10px rgba(52,199,89,0.5); }
         .info { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .name { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .status { font-size: 13px; color: var(--text-grey); margin-top: 2px; }
@@ -49,13 +47,11 @@
         .invite-row { display: flex; align-items: center; padding: 15px 20px; color: var(--tg-blue); font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
         .invite-row i { font-size: 20px; margin-right: 25px; margin-left: 10px; }
 
-        /* Floating Messages */
         .floating-messages { position: absolute; bottom: 110px; left: 15px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: none; }
         .msg-bubble { background: rgba(24, 29, 34, 0.9); padding: 8px 14px; border-radius: 20px; display: flex; align-items: center; gap: 8px; animation: slideInBottom 0.3s ease forwards; max-width: 80vw; }
         @keyframes slideInBottom { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .msg-bubble span { font-size: 14px; color: white; word-break: break-word; }
 
-        /* Bottom Controls */
         .bottom-controls {
             display: flex; justify-content: space-around; align-items: center;
             padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px;
@@ -72,7 +68,6 @@
         .main-mic.state-muted { background-color: var(--btn-dark); }
         .main-mic.state-live { background-color: var(--tg-green); }
 
-        /* Chat Input Area */
         .chat-input-area {
             position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark);
             padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30;
@@ -81,11 +76,9 @@
         .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
         .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
 
-        /* Join Overlay */
         .join-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; }
 
-        /* Toast */
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 200; opacity: 0; transition: 0.3s ease; pointer-events: none; }
         .tg-toast.show { opacity: 1; }
     </style>
@@ -116,7 +109,7 @@
             <div class="avatar" id="my-avatar" style="background-color: #ff9500;">S</div>
             <div class="info">
                 <span class="name" id="my-name">Sanatani Gojo</span>
-                <span class="status" id="my-status">muted</span>
+                <span class="status" id="my-status">listening</span>
             </div>
             <i class="fa-solid fa-microphone-slash mic-icon" id="my-list-mic"></i>
         </div>
@@ -161,7 +154,6 @@
         let call = null;
         let isMuted = true;
 
-        // Telegram Setup & User Details
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.expand(); try { tg.setHeaderColor('#181d22'); } catch(e){} }
         
@@ -184,7 +176,6 @@
         }
         document.getElementById('my-avatar').style.backgroundColor = getColor(currentUser);
 
-        // UI Utils
         let toastTimeout;
         function showToast(msg) {
             const toast = document.getElementById('toast-msg'); toast.innerText = msg; toast.classList.add('show');
@@ -192,17 +183,17 @@
         }
 
         // ==============================
-        // DAILY.CO ENGINE LOGIC
+        // FIXED CALL JOINING LOGIC
         // ==============================
         async function startCall() {
-            try {
-                // IMPORTANT: Asking mic permission first prevents connection failure!
-                await navigator.mediaDevices.getUserMedia({audio: true});
-                
-                showToast("Connecting...");
-                document.getElementById('join-overlay').classList.add('hidden');
+            document.getElementById('join-overlay').classList.add('hidden');
+            showToast("Connecting...");
 
-                if (!call) call = window.DailyIframe.createCallObject();
+            if (!call) {
+                call = window.DailyIframe.createCallObject({
+                    audioSource: false, // Start WITHOUT asking mic
+                    videoSource: false
+                });
 
                 call.on('participant-joined', handleJoin)
                     .on('participant-updated', handleUpdate)
@@ -210,15 +201,16 @@
                     .on('active-speaker-change', handleSpeaker)
                     .on('track-started', playAudio)
                     .on('app-message', handleChat)
-                    .on('error', e => { showToast("Connection failed!"); console.log(e); });
+                    .on('error', e => { showToast("Connection error!"); console.log(e); });
+            }
 
+            try {
+                // Now it will join successfully as a listener without freezing
                 await call.join({ url: ROOM_URL, userName: currentUser });
-                call.setLocalAudio(false); // start muted
                 showToast("Joined Group VC!");
-
             } catch(e) {
                 document.getElementById('join-overlay').classList.remove('hidden');
-                showToast("Error: Please Allow Microphone!");
+                showToast("Connection Failed. Try again.");
             }
         }
 
@@ -235,7 +227,7 @@
             const name = p.user_name || "User";
             
             row.innerHTML = `
-                <div class="avatar" style="background-color: ${getColor(name)};">${name.charAt(0).toUpperCase()}</div>
+                <div class="avatar" id="avatar-${p.session_id}" style="background-color: ${getColor(name)};">${name.charAt(0).toUpperCase()}</div>
                 <div class="info">
                     <span class="name">${name}</span>
                     <span class="status" id="status-${p.session_id}">listening</span>
@@ -263,30 +255,37 @@
                     micIcon.className = "fa-solid fa-microphone-slash mic-icon";
                     status.innerText = 'muted';
                     status.classList.remove('speaking');
+                    document.getElementById(`avatar-${p.session_id}`)?.classList.remove('speaking');
                 }
             }
         }
 
         function handleSpeaker(e) {
-            // Reset everyone's speaking status
             document.querySelectorAll('.status').forEach(el => {
                 if(el.innerText === 'speaking') {
                     el.innerText = 'listening';
                     el.classList.remove('speaking');
                 }
             });
+            document.querySelectorAll('.avatar').forEach(el => el.classList.remove('speaking'));
 
             const speakerId = e.activeSpeaker?.peerId;
             if (speakerId) {
                 const isLocal = (speakerId === call.participants().local.session_id);
-                const statusEl = isLocal ? document.getElementById('my-status') : document.getElementById(`status-${speakerId}`);
                 
-                if (statusEl) {
-                    statusEl.innerText = 'speaking';
-                    statusEl.classList.add('speaking');
+                if (isLocal && !isMuted) {
+                    document.getElementById('my-status').innerText = 'speaking';
+                    document.getElementById('my-status').classList.add('speaking');
+                    document.getElementById('my-avatar').classList.add('speaking');
+                } else if (!isLocal) {
+                    const statusEl = document.getElementById(`status-${speakerId}`);
+                    const avatarEl = document.getElementById(`avatar-${speakerId}`);
+                    if (statusEl) {
+                        statusEl.innerText = 'speaking';
+                        statusEl.classList.add('speaking');
+                    }
+                    if (avatarEl) avatarEl.classList.add('speaking');
                 }
-            } else {
-                if(!isMuted) document.getElementById('my-status').innerText = 'listening';
             }
         }
 
@@ -304,26 +303,35 @@
         }
 
         // ==============================
-        // UI CONTROLS
+        // MIC PERMISSION & TOGGLE FIX
         // ==============================
-        function toggleMainMic() {
-            if(!call) return;
-            isMuted = !isMuted;
-            call.setLocalAudio(!isMuted);
+        async function toggleMainMic() {
+            if(!call) { showToast("Not connected to room!"); return; }
+            
+            try {
+                // Ye line tabhi permission mangegi jab user khud mic button dabayega
+                isMuted = !isMuted;
+                await call.setLocalAudio(!isMuted);
 
-            const btn = document.getElementById('main-mic-btn');
-            const icon = document.getElementById('main-mic-icon');
-            const listMic = document.getElementById('my-list-mic');
-            const statusText = document.getElementById('my-status');
+                const btn = document.getElementById('main-mic-btn');
+                const icon = document.getElementById('main-mic-icon');
+                const listMic = document.getElementById('my-list-mic');
+                const statusText = document.getElementById('my-status');
 
-            if (!isMuted) {
-                btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
-                listMic.className = 'fa-solid fa-microphone mic-icon green';
-                statusText.innerText = 'listening';
-            } else {
-                btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
-                listMic.className = 'fa-solid fa-microphone-slash mic-icon';
-                statusText.innerText = 'muted'; statusText.classList.remove('speaking');
+                if (!isMuted) {
+                    btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
+                    listMic.className = 'fa-solid fa-microphone mic-icon green';
+                    statusText.innerText = 'listening';
+                } else {
+                    btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
+                    listMic.className = 'fa-solid fa-microphone-slash mic-icon';
+                    statusText.innerText = 'muted'; 
+                    statusText.classList.remove('speaking');
+                    document.getElementById('my-avatar').classList.remove('speaking');
+                }
+            } catch(e) {
+                isMuted = true;
+                showToast("Please Allow Microphone in Browser Settings!");
             }
         }
 
@@ -344,9 +352,6 @@
             navigator.clipboard.writeText(window.location.href).then(() => showToast("Invite link copied!"));
         }
 
-        // ==============================
-        // REAL CHAT LOGIC (Using Daily.co)
-        // ==============================
         const chatBox = document.getElementById('chat-box');
         const mainControls = document.getElementById('main-controls');
         const chatInput = document.getElementById('chat-input');
@@ -362,11 +367,7 @@
             e.preventDefault(); 
             const text = chatInput.value.trim(); 
             if(text === '') return;
-            
-            // Send to everyone via Daily
             if(call) call.sendAppMessage({ text: text, name: currentUser }, '*');
-            
-            // Show locally
             displayMsg(currentUser, text);
             chatInput.value = ''; closeChat();
         }
@@ -381,5 +382,4 @@
         }
     </script>
 </body>
-                </html>
-                
+</html>
