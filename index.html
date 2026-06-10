@@ -11,20 +11,12 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
     <style>
-        :root {
-            --bg-dark: #0f1115; --header-dark: #181d22; --btn-dark: #2b3a4a;
-            --text-grey: #8b959d; --tg-blue: #3facf0; --tg-green: #34c759;
-            --tg-red: #ff3b30; --vh: 1vh;
-        }
+        :root { --bg-dark: #0f1115; --header-dark: #181d22; --btn-dark: #2b3a4a; --text-grey: #8b959d; --tg-blue: #3facf0; --tg-green: #34c759; --tg-red: #ff3b30; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body {
-            margin: 0; padding: 0; background-color: var(--bg-dark); color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative;
-        }
+        body { margin: 0; padding: 0; background-color: var(--bg-dark); color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
         .hidden { display: none !important; }
 
-        /* CAPTCHA SCREEN */
+        /* CAPTCHA */
         #captcha-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; z-index: 5000; position: absolute; width: 100%; background: var(--bg-dark); }
         .captcha-box { background: var(--header-dark); padding: 30px; border-radius: 20px; text-align: center; width: 100%; max-width: 350px; border: 1px solid rgba(255,255,255,0.05); }
         .captcha-box h2 { margin-top: 0; font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--tg-blue); }
@@ -40,9 +32,8 @@
         .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(63, 172, 240, 0.3); }
         .join-btn:active { transform: scale(0.95); }
 
-        /* TELEGRAM UI */
+        /* UI ELEMENTS */
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
-        .header-left { display: flex; align-items: center; gap: 15px; }
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
         .header-icons { display: flex; gap: 20px; }
         .header-icons i { font-size: 20px; color: var(--text-grey); cursor: pointer; }
@@ -57,17 +48,20 @@
         .status.speaking { color: var(--tg-green); }
         .mic-icon { font-size: 18px; color: var(--text-grey); }
         .mic-icon.green { color: var(--tg-green); }
-        
         .invite-row { display: flex; align-items: center; padding: 15px 20px; color: var(--tg-blue); font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
         .invite-row i { font-size: 20px; margin-right: 25px; margin-left: 10px; }
 
-        /* FLOATING MESSAGES (CHAT) */
+        /* CHAT */
         .floating-messages { position: absolute; bottom: 110px; left: 15px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: none; }
         .msg-bubble { background: rgba(24, 29, 34, 0.9); padding: 8px 14px; border-radius: 20px; display: flex; align-items: center; gap: 8px; animation: slideInBottom 0.3s ease forwards; max-width: 80vw; }
         @keyframes slideInBottom { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .msg-bubble span { font-size: 14px; color: white; word-break: break-word; }
+        .chat-input-area { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark); padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30; }
+        .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
+        .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
+        .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
 
-        /* BOTTOM CONTROLS */
+        /* CONTROLS */
         .bottom-controls { display: flex; justify-content: space-around; align-items: center; padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px; background-color: var(--header-dark); position: absolute; bottom: 0; left: 0; right: 0; width: 100%; z-index: 20; border-top: 1px solid rgba(255,255,255,0.05); }
         .control-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; justify-content: center; align-items: center; font-size: 22px; color: white; background-color: var(--btn-dark); cursor: pointer; transition: transform 0.1s ease; }
@@ -76,13 +70,6 @@
         .main-mic { width: 65px; height: 65px; font-size: 26px; }
         .main-mic.state-muted { background-color: var(--btn-dark); }
         .main-mic.state-live { background-color: var(--tg-green); }
-
-        /* CHAT INPUT AREA */
-        .chat-input-area { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark); padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30; }
-        .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
-        .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
-        .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
-
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; }
         .tg-toast.show { opacity: 1; }
     </style>
@@ -129,7 +116,6 @@
                 </div>
                 <i class="fa-solid fa-microphone-slash mic-icon" id="my-list-mic"></i>
             </div>
-
             <div class="invite-row" id="invite-btn" onclick="copyInviteLink()">
                 <i class="fa-solid fa-user-plus"></i>
                 <span>Invite Members</span>
@@ -140,14 +126,10 @@
 
         <div class="bottom-controls" id="main-controls">
             <div class="control-btn-wrap">
-                <button class="control-btn" onclick="showToast('Speaker ON')">
-                    <i class="fa-solid fa-volume-high" id="speaker-icon"></i>
-                </button>
+                <button class="control-btn" onclick="showToast('Speaker ON')"><i class="fa-solid fa-volume-high" id="speaker-icon"></i></button>
             </div>
             <div class="control-btn-wrap">
-                <button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()">
-                    <i class="fa-solid fa-user" id="main-mic-icon"></i>
-                </button>
+                <button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()"><i class="fa-solid fa-user" id="main-mic-icon"></i></button>
             </div>
             <div class="control-btn-wrap">
                 <button class="control-btn" onclick="openChat()"><i class="fa-solid fa-message"></i></button>
@@ -166,17 +148,26 @@
 
     <script>
         // ==========================================
-        // CONFIGURATIONS
+        // DYNAMIC ROOM FIX (TELEGRAM STRIP BYPASS)
         // ==========================================
-        const SERVER_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com"; 
+        let ROOM_ID = null;
         
-        // DYNAMIC ROOM LOGIC
-        const urlParams = new URLSearchParams(window.location.search);
-        let ROOM_ID = urlParams.get('room');
+        // Telegram WebApp bug bypass: check standard search param AND raw href
+        if (window.location.search.includes('room=')) {
+            ROOM_ID = new URLSearchParams(window.location.search).get('room');
+        } else if (window.location.href.includes('room=')) {
+            ROOM_ID = window.location.href.split('room=')[1].split('&')[0];
+        }
+
+        // If still no room found, generate one
         if (!ROOM_ID) {
             ROOM_ID = "group_" + Math.random().toString(36).substring(2, 9);
             window.history.replaceState(null, '', '?room=' + ROOM_ID);
         }
+
+        // VPS SIGNALING SERVER & BOT URL
+        const SERVER_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com"; 
+        const BOT_INVITE_LINK = "https://t.me/YourBotUsername_bot"; // LEAVE BUTTON YAHAN REDIRECT HOGA
 
         let socket;
         let myPeer;
@@ -187,9 +178,7 @@
         let num1, num2, correctAnswer;
         const peers = {};
 
-        // ==========================================
-        // INITIALIZATION
-        // ==========================================
+        // INIT
         document.addEventListener("DOMContentLoaded", () => {
             try {
                 if (window.Telegram?.WebApp) {
@@ -215,9 +204,7 @@
             }
         });
 
-        // ==========================================
         // CAPTCHA
-        // ==========================================
         function generateCaptcha() {
             num1 = Math.floor(Math.random() * 10) + 1;
             num2 = Math.floor(Math.random() * 10) + 1;
@@ -249,28 +236,22 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // ==========================================
-        // WEBRTC CONNECTION
-        // ==========================================
+        // WEBRTC & SOCKET CONNECTION
         async function startCall() {
             document.getElementById('join-overlay').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
-            showToast("Connecting to Private Server...");
+            showToast("Joining Room: " + ROOM_ID);
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                localStream.getAudioTracks()[0].enabled = false; // Start muted
+                localStream.getAudioTracks()[0].enabled = false;
                 isMuted = true;
 
-                socket = io(SERVER_URL);
-                const hostUrl = SERVER_URL.replace('https://', '');
+                // Force WebSocket connection for Cloudflare stability
+                socket = io(SERVER_URL, { transports: ["websocket", "polling"] });
 
-                myPeer = new Peer(undefined, {
-                    host: hostUrl,
-                    port: 443,
-                    path: '/peerjs',
-                    secure: true
-                });
+                // PUBLIC PEERJS SERVER FOR 100% VOICE STABILITY (Bypasses Cloudflare limits)
+                myPeer = new Peer(); 
 
                 myPeer.on('open', id => {
                     socket.emit('join-room', ROOM_ID, id);
@@ -287,13 +268,12 @@
                     });
                 });
 
-                // CHAT & DATA SYNC LISTENER
                 myPeer.on('connection', conn => {
                     conn.on('data', data => {
                         if (data.type === 'chat') {
-                            displayMsg(data.name, data.text); // Show received chat
+                            displayMsg(data.name, data.text);
                         } else if (data.name && data.initial) {
-                            updateParticipantUI(conn.peer, data.name, data.initial); // Sync Name
+                            updateParticipantUI(conn.peer, data.name, data.initial);
                         }
                     });
                     conn.on('open', () => {
@@ -311,33 +291,22 @@
                 });
 
             } catch(e) {
-                console.error("Mic or Network Error:", e);
-                alert("Please allow Microphone access to use Voice Chat.");
+                console.error("Mic Error:", e);
+                alert("Please allow Microphone access.");
             }
         }
 
         function connectToNewUser(userId, stream) {
-            const call = myPeer.call(userId, stream, { 
-                metadata: { name: currentUser, initial: initial } 
-            });
-            call.on('stream', userAudioStream => {
-                playRemoteStream(userAudioStream, userId);
-            });
-            call.on('close', () => {
-                removeParticipantUI(userId);
-            });
+            const call = myPeer.call(userId, stream, { metadata: { name: currentUser, initial: initial } });
+            call.on('stream', userAudioStream => { playRemoteStream(userAudioStream, userId); });
+            call.on('close', () => { removeParticipantUI(userId); });
             peers[userId] = call;
 
             const conn = myPeer.connect(userId);
-            conn.on('open', () => {
-                conn.send({ name: currentUser, initial: initial });
-            });
+            conn.on('open', () => { conn.send({ name: currentUser, initial: initial }); });
             conn.on('data', data => {
-                if (data.type === 'chat') {
-                    displayMsg(data.name, data.text);
-                } else if (data.name && data.initial) {
-                    updateParticipantUI(userId, data.name, data.initial);
-                }
+                if (data.type === 'chat') displayMsg(data.name, data.text);
+                else if (data.name && data.initial) updateParticipantUI(userId, data.name, data.initial);
             });
         }
 
@@ -352,11 +321,7 @@
             }
         }
 
-        // ==========================================
-        // BUTTON ACTIONS
-        // ==========================================
-        
-        // 1. MIC TOGGLE
+        // MIC
         function toggleMainMic() {
             if(localStream) {
                 isMuted = !isMuted;
@@ -368,67 +333,38 @@
                 const statusText = document.getElementById('my-status');
 
                 if (!isMuted) {
-                    btn.className = 'control-btn main-mic state-live'; 
-                    icon.className = 'fa-solid fa-microphone';
-                    listMic.className = 'fa-solid fa-microphone mic-icon green';
-                    statusText.innerText = 'speaking';
+                    btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
+                    listMic.className = 'fa-solid fa-microphone mic-icon green'; statusText.innerText = 'speaking';
                     document.getElementById('my-avatar').classList.add('speaking');
                 } else {
-                    btn.className = 'control-btn main-mic state-muted'; 
-                    icon.className = 'fa-solid fa-user';
-                    listMic.className = 'fa-solid fa-microphone-slash mic-icon';
-                    statusText.innerText = 'muted'; 
+                    btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
+                    listMic.className = 'fa-solid fa-microphone-slash mic-icon'; statusText.innerText = 'muted'; 
                     document.getElementById('my-avatar').classList.remove('speaking');
                 }
-            } else {
-                showToast("Microphone not ready yet.");
-            }
+            } else { showToast("Microphone not ready yet."); }
         }
 
-        // 2. CHAT SYSTEM
+        // CHAT
         const chatBox = document.getElementById('chat-box');
         const mainControls = document.getElementById('main-controls');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const msgContainer = document.getElementById('message-container');
 
-        function openChat() { 
-            mainControls.classList.add('hidden'); 
-            chatBox.classList.remove('hidden'); 
-            chatInput.focus(); 
-        }
-        
-        function closeChat() { 
-            chatInput.blur(); 
-            window.focus(); 
-            setTimeout(() => { 
-                chatBox.classList.add('hidden'); 
-                mainControls.classList.remove('hidden'); 
-                sendBtn.style.display = 'none'; 
-            }, 100); 
-        }
-        
-        function checkInput() { 
-            sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; 
-        }
+        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
+        function closeChat() { chatInput.blur(); window.focus(); setTimeout(() => { chatBox.classList.add('hidden'); mainControls.classList.remove('hidden'); sendBtn.style.display = 'none'; }, 100); }
+        function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
 
         function sendMessage(e) {
             e.preventDefault(); 
             const text = chatInput.value.trim(); 
             if(text === '') return;
             
-            // Broadcast message to everyone in the room
             Object.keys(peers).forEach(peerId => {
                 const conn = myPeer.connect(peerId);
-                conn.on('open', () => {
-                    conn.send({ type: 'chat', name: currentUser, text: text });
-                });
+                conn.on('open', () => { conn.send({ type: 'chat', name: currentUser, text: text }); });
             });
-
-            // Show on own screen
-            displayMsg(currentUser, text);
-            chatInput.value = ''; 
-            closeChat();
+            displayMsg(currentUser, text); chatInput.value = ''; closeChat();
         }
 
         function displayMsg(name, text) {
@@ -438,77 +374,54 @@
             setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 5000); }, 5000);
         }
 
-        // 3. INVITE SYSTEM
+        // INVITE
         function copyInviteLink() {
-            // Copy dynamic room URL fallback mechanism
             const link = window.location.href;
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(link).then(() => showToast("Room link copied!"));
             } else {
-                // Fallback for some mobile browsers
-                let tempInput = document.createElement("input");
-                tempInput.value = link;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand("copy");
-                document.body.removeChild(tempInput);
-                showToast("Room link copied!");
+                let tempInput = document.createElement("input"); tempInput.value = link;
+                document.body.appendChild(tempInput); tempInput.select(); document.execCommand("copy");
+                document.body.removeChild(tempInput); showToast("Room link copied!");
             }
         }
 
-        // 4. LEAVE SYSTEM
+        // LEAVE (FORCE REDIRECT TO BOT)
         function leaveSession() {
             try {
                 if(localStream) localStream.getTracks().forEach(track => track.stop());
                 if(socket) socket.disconnect();
                 if(myPeer) myPeer.destroy();
-            } catch(e) {
-                console.error("Cleanup error", e);
-            }
+            } catch(e) {}
             
-            if (window.Telegram?.WebApp?.close) {
-                window.Telegram.WebApp.close();
-            } else {
-                window.location.reload();
-            }
+            try {
+                if (window.Telegram?.WebApp) window.Telegram.WebApp.close();
+            } catch(e) {}
+            
+            // Telegram close command ignore karne par sidha Bot par phek dega
+            window.location.href = BOT_INVITE_LINK;
         }
 
-        // UI HELPERS
+        // UI
         function addParticipantUI(uid, name, init) {
             if(document.getElementById(`user-${uid}`)) return;
-            const list = document.getElementById('participant-list');
-            const inviteBtn = document.getElementById('invite-btn');
-            const row = document.createElement('div');
-            row.className = 'participant-item';
-            row.id = `user-${uid}`;
+            const list = document.getElementById('participant-list'); const inviteBtn = document.getElementById('invite-btn');
+            const row = document.createElement('div'); row.className = 'participant-item'; row.id = `user-${uid}`;
             row.innerHTML = `
                 <div class="avatar" style="background-color: ${getColor(name)}">${init}</div>
-                <div class="info">
-                    <span class="name">${name}</span>
-                    <span class="status">listening</span>
-                </div>
-                <i class="fa-solid fa-microphone-slash mic-icon"></i>
-            `;
+                <div class="info"><span class="name">${name}</span><span class="status">listening</span></div>
+                <i class="fa-solid fa-microphone-slash mic-icon"></i>`;
             list.insertBefore(row, inviteBtn);
         }
-
         function updateParticipantUI(uid, name, init) {
             const row = document.getElementById(`user-${uid}`);
-            if (row) {
-                row.querySelector('.name').innerText = name;
-                row.querySelector('.avatar').innerText = init;
-                row.querySelector('.avatar').style.backgroundColor = getColor(name);
-            } else {
-                addParticipantUI(uid, name, init);
-            }
+            if (row) { row.querySelector('.name').innerText = name; row.querySelector('.avatar').innerText = init; row.querySelector('.avatar').style.backgroundColor = getColor(name); } 
+            else { addParticipantUI(uid, name, init); }
         }
-
         function removeParticipantUI(uid) {
-            const el = document.getElementById(`user-${uid}`);
-            if(el) el.remove();
-            const aud = document.getElementById(`audio-${uid}`);
-            if(aud) aud.remove();
+            const el = document.getElementById(`user-${uid}`); if(el) el.remove();
+            const aud = document.getElementById(`audio-${uid}`); if(aud) aud.remove();
         }
     </script>
 </body>
-</html
+</html>
