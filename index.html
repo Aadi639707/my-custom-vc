@@ -13,7 +13,7 @@
         :root {
             --bg-dark: #0f1115; --header-dark: #181d22; --btn-dark: #2b3a4a;
             --text-grey: #8b959d; --tg-blue: #3facf0; --tg-green: #34c759;
-            --tg-red: #ff3b30; --cf-orange: #f6821f; --vh: 1vh;
+            --tg-red: #ff3b30; --vh: 1vh;
         }
 
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
@@ -28,18 +28,6 @@
 
         .hidden { display: none !important; }
 
-        /* CLOUDFLARE SECURE OVERLAY */
-        .cf-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; text-align: center; padding: 20px; }
-        .cf-spinner { width: 45px; height: 45px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--cf-orange); border-radius: 50%; animation: cf-spin 1s linear infinite; margin-bottom: 25px; display: none; }
-        @keyframes cf-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .cf-overlay h2 { font-size: 22px; margin-bottom: 12px; font-weight: 500; }
-        .cf-overlay p { color: var(--text-grey); font-size: 15px; line-height: 1.5; margin-bottom: 30px; }
-        .cf-logo { color: var(--text-grey); font-size: 13px; display: flex; align-items: center; gap: 8px; margin-top: 20px; }
-        .cf-logo i { color: var(--cf-orange); font-size: 18px; }
-        .verify-btn { background: transparent; border: 2px solid var(--cf-orange); color: var(--cf-orange); padding: 12px 30px; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .verify-btn:active { background: var(--cf-orange); color: white; }
-
-        /* TELEGRAM UI */
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
         .header-left { display: flex; align-items: center; gap: 15px; }
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
@@ -85,9 +73,12 @@
             position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark);
             padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30;
         }
-        .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
         .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
         .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
+
+        .join-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; pointer-events: auto; }
+        .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(63, 172, 240, 0.3); }
+        .join-btn:active { transform: scale(0.95); }
 
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; width: 80%; }
         .tg-toast.show { opacity: 1; }
@@ -102,22 +93,18 @@
 
     <div class="tg-toast" id="toast-msg">Notification</div>
     
-    <div class="cf-overlay" id="cf-overlay">
-        <div class="cf-spinner" id="cf-spinner"></div>
-        <h2 id="cf-title">Security Check</h2>
-        <p id="cf-desc">Verify you are human to access the Voice Room.</p>
-        <button class="verify-btn" id="verify-btn" onclick="initiateConnection()">Tap to Verify</button>
-        <div class="cf-logo">
-            <i class="fa-solid fa-cloud"></i>
-            <span>Protected by <b style="color:var(--cf-orange);">Cloudflare</b></span>
-        </div>
-    </div>
-    
     <div class="error-modal hidden" id="mic-error">
         <i class="fa-solid fa-microphone-slash" style="font-size: 60px; color: #ff3b30; margin-bottom: 20px;"></i>
         <h3>Microphone Blocked</h3>
         <p>App is blocking the microphone.<br><br>Please copy the link and open it in <b>Chrome</b> or <b>Safari</b> to speak.</p>
         <button class="copy-btn-large" onclick="copyAndRedirect()">Copy & Open Browser</button>
+    </div>
+
+    <div class="join-overlay" id="join-overlay">
+        <i class="fa-solid fa-microphone-lines" style="font-size: 50px; color: var(--tg-blue);"></i>
+        <h2 style="margin-top: 15px;">Group Voice Chat</h2>
+        <p style="color: var(--text-grey); font-size: 14px;">Tap below to connect</p>
+        <button id="real-join-btn" class="join-btn" onclick="startCall()">Join Room</button>
     </div>
 
     <div class="top-header">
@@ -212,116 +199,67 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        function setupEvents(c) {
-            c.on('participant-joined', handleJoin)
-             .on('participant-updated', handleUpdate)
-             .on('participant-left', handleLeft)
-             .on('active-speaker-change', handleSpeaker)
-             .on('track-started', playAudio)
-             .on('app-message', handleChat)
-             .on('error', e => { console.error("Daily Error:", e); });
-        }
-
-        // ===============================================
-        // SECURE JOIN LOGIC WITH FALLBACK
-        // ===============================================
-        function initiateConnection() {
-            // Change UI to loading spinner
-            document.getElementById('verify-btn').style.display = 'none';
-            document.getElementById('cf-spinner').style.display = 'block';
-            document.getElementById('cf-title').innerText = 'Verifying your connection...';
-            document.getElementById('cf-desc').innerText = 'Checking if the site connection is secure.\nPlease stand by.';
-            
-            // 2 second animation
-            setTimeout(() => {
-                startCall();
-            }, 2000);
-        }
-
         async function startCall() {
+            document.getElementById('join-overlay').style.display = 'none';
+            showToast("Connecting...");
+
             if (typeof window.DailyIframe === 'undefined') {
-                setTimeout(startCall, 500);
+                showToast("Engine loading, try again...");
+                document.getElementById('join-overlay').style.display = 'flex';
                 return;
             }
 
             try {
-                // TRY 1: Default Join (Might fail if mic strictly needed and telegram blocks it)
                 if (!call) {
-                    call = window.DailyIframe.createCallObject();
-                    setupEvents(call);
+                    // Start exactly as a silent listener
+                    call = window.DailyIframe.createCallObject({ 
+                        audioSource: false, 
+                        videoSource: false 
+                    });
+
+                    call.on('participant-joined', handleJoin)
+                        .on('participant-updated', handleUpdate)
+                        .on('participant-left', handleLeft)
+                        .on('active-speaker-change', handleSpeaker)
+                        .on('track-started', playAudio)
+                        .on('app-message', handleChat)
+                        .on('error', e => { console.error(e); });
                 }
-                
+
                 await call.join({ url: ROOM_URL, userName: currentUser });
-                
-                // Success! Force Mute immediately so user is just "listening"
-                call.setLocalAudio(false);
-                isMuted = true;
-                
-                document.getElementById('cf-overlay').style.display = 'none';
-                showToast("Connected securely!");
+                showToast("Joined Successfully!");
                 
             } catch(e) {
-                console.error("First Join Failed, Retrying as Listener...", e);
-                
-                // TRY 2: Explicitly tell Daily we don't want Mic/Cam on start
-                try {
-                    if (call) { call.destroy(); call = null; }
-                    call = window.DailyIframe.createCallObject({ audioSource: false, videoSource: false });
-                    setupEvents(call);
-                    
-                    await call.join({ url: ROOM_URL, userName: currentUser });
-                    isMuted = true;
-                    
-                    document.getElementById('cf-overlay').style.display = 'none';
-                    showToast("Joined as Listener.");
-                } catch(err) {
-                    console.error("Fatal Error:", err);
-                    document.getElementById('cf-overlay').style.display = 'flex';
-                    document.getElementById('verify-btn').style.display = 'block';
-                    document.getElementById('cf-spinner').style.display = 'none';
-                    document.getElementById('cf-title').innerText = 'Connection Failed';
-                    document.getElementById('cf-desc').innerText = 'Could not reach server. Tap to retry.';
-                }
+                console.error("Join Error:", e);
+                document.getElementById('join-overlay').style.display = 'flex';
+                showToast("Connection Failed. Check Settings.");
             }
         }
 
         async function toggleMainMic() {
-            if(!call) { showToast("Wait for connection..."); return; }
-            
+            if(!call) { showToast("Not connected!"); return; }
             try {
-                if (isMuted) {
-                    // Try to turn ON Mic
-                    await call.setLocalAudio(true);
-                    isMuted = false;
+                // Request Permission exactly when the button is clicked
+                await call.setLocalAudio(!isMuted);
+                isMuted = !isMuted;
 
-                    const btn = document.getElementById('main-mic-btn');
-                    const icon = document.getElementById('main-mic-icon');
-                    const listMic = document.getElementById('my-list-mic');
-                    const statusText = document.getElementById('my-status');
+                const btn = document.getElementById('main-mic-btn');
+                const icon = document.getElementById('main-mic-icon');
+                const listMic = document.getElementById('my-list-mic');
+                const statusText = document.getElementById('my-status');
 
-                    btn.className = 'control-btn main-mic state-live'; 
-                    icon.className = 'fa-solid fa-microphone';
+                if (!isMuted) {
+                    btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
                     listMic.className = 'fa-solid fa-microphone mic-icon green';
                     statusText.innerText = 'speaking';
                 } else {
-                    // Turn OFF Mic
-                    await call.setLocalAudio(false);
-                    isMuted = true;
-
-                    const btn = document.getElementById('main-mic-btn');
-                    const icon = document.getElementById('main-mic-icon');
-                    const listMic = document.getElementById('my-list-mic');
-                    const statusText = document.getElementById('my-status');
-
-                    btn.className = 'control-btn main-mic state-muted'; 
-                    icon.className = 'fa-solid fa-user';
+                    btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
                     listMic.className = 'fa-solid fa-microphone-slash mic-icon';
                     statusText.innerText = 'muted'; 
                     statusText.classList.remove('speaking');
                     document.getElementById('my-avatar').classList.remove('speaking');
                 }
             } catch(e) {
-                console.error("Mic block:", e);
                 isMuted = true;
                 document.getElementById('mic-error').classList.remove('hidden');
             }
