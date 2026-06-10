@@ -73,6 +73,7 @@
             position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark);
             padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30;
         }
+        .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
         .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
         .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
 
@@ -82,29 +83,17 @@
 
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; width: 80%; }
         .tg-toast.show { opacity: 1; }
-        
-        .error-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; z-index: 3000; flex-direction: column; text-align: center; padding: 20px; }
-        .error-modal h3 { color: #ff3b30; margin-bottom: 15px; font-size: 24px; }
-        .error-modal p { color: #fff; font-size: 16px; margin-bottom: 25px; line-height: 1.6; }
-        .copy-btn-large { background: var(--tg-blue); color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="tg-toast" id="toast-msg">Notification</div>
-    
-    <div class="error-modal hidden" id="mic-error">
-        <i class="fa-solid fa-microphone-slash" style="font-size: 60px; color: #ff3b30; margin-bottom: 20px;"></i>
-        <h3>Microphone Blocked</h3>
-        <p>App is blocking the microphone.<br><br>Please copy the link and open it in <b>Chrome</b> or <b>Safari</b> to speak.</p>
-        <button class="copy-btn-large" onclick="copyAndRedirect()">Copy & Open Browser</button>
-    </div>
 
     <div class="join-overlay" id="join-overlay">
         <i class="fa-solid fa-microphone-lines" style="font-size: 50px; color: var(--tg-blue);"></i>
         <h2 style="margin-top: 15px;">Group Voice Chat</h2>
         <p style="color: var(--text-grey); font-size: 14px;">Tap below to connect</p>
-        <button id="real-join-btn" class="join-btn">Join Room</button>
+        <button id="real-join-btn" class="join-btn" onclick="startCall()">Join Room</button>
     </div>
 
     <div class="top-header">
@@ -169,8 +158,6 @@
         let initial = "S";
 
         document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById("real-join-btn").addEventListener("click", startCall);
-            
             try {
                 if (window.Telegram?.WebApp) {
                     window.Telegram.WebApp.ready();
@@ -201,6 +188,9 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
+        // ==========================================
+        // 1. JOIN ROOM (LISTENER MODE)
+        // ==========================================
         async function startCall() {
             document.getElementById('join-overlay').style.display = 'none';
             showToast("Connecting...");
@@ -213,9 +203,9 @@
 
             try {
                 if (!call) {
-                    // YAHAN FIX KIYA HAI: audioSource: true karna zaroori hai
+                    // Start WITHOUT requesting mic permission (audioSource: false)
                     call = window.DailyIframe.createCallObject({ 
-                        audioSource: true, 
+                        audioSource: false, 
                         videoSource: false 
                     });
 
@@ -229,37 +219,51 @@
                 }
 
                 await call.join({ url: ROOM_URL, userName: currentUser });
-                
-                // Join hote hi mic mute kar do taaki 'Listening' mode me rahe
-                call.setLocalAudio(false);
-                isMuted = true;
-                
-                showToast("Joined Successfully!");
+                showToast("Joined! Tap Mic to Speak.");
                 
             } catch(e) {
                 console.error(e);
-                // Agar permission block hui, toh error modal dikhao
-                document.getElementById('mic-error').classList.remove('hidden');
+                document.getElementById('join-overlay').style.display = 'flex';
+                showToast("Failed to join room.");
             }
         }
 
+        // ==========================================
+        // 2. TRIGGER MIC PERMISSION ON BUTTON CLICK
+        // ==========================================
         async function toggleMainMic() {
-            if(!call) { showToast("Not connected!"); return; }
+            if(!call) { showToast("Not connected to room!"); return; }
+            
             try {
-                isMuted = !isMuted;
-                await call.setLocalAudio(!isMuted);
+                if (isMuted) {
+                    // Trigger the native browser pop-up to Allow/Deny
+                    await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    // Once allowed, tell Daily.co to turn on the mic
+                    await call.setLocalAudio(true);
+                    isMuted = false;
 
-                const btn = document.getElementById('main-mic-btn');
-                const icon = document.getElementById('main-mic-icon');
-                const listMic = document.getElementById('my-list-mic');
-                const statusText = document.getElementById('my-status');
+                    const btn = document.getElementById('main-mic-btn');
+                    const icon = document.getElementById('main-mic-icon');
+                    const listMic = document.getElementById('my-list-mic');
+                    const statusText = document.getElementById('my-status');
 
-                if (!isMuted) {
-                    btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
+                    btn.className = 'control-btn main-mic state-live'; 
+                    icon.className = 'fa-solid fa-microphone';
                     listMic.className = 'fa-solid fa-microphone mic-icon green';
-                    statusText.innerText = 'listening';
+                    statusText.innerText = 'speaking';
                 } else {
-                    btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
+                    // Mute the mic
+                    await call.setLocalAudio(false);
+                    isMuted = true;
+
+                    const btn = document.getElementById('main-mic-btn');
+                    const icon = document.getElementById('main-mic-icon');
+                    const listMic = document.getElementById('my-list-mic');
+                    const statusText = document.getElementById('my-status');
+
+                    btn.className = 'control-btn main-mic state-muted'; 
+                    icon.className = 'fa-solid fa-user';
                     listMic.className = 'fa-solid fa-microphone-slash mic-icon';
                     statusText.innerText = 'muted'; 
                     statusText.classList.remove('speaking');
@@ -267,22 +271,9 @@
                 }
             } catch(e) {
                 isMuted = true;
-                document.getElementById('mic-error').classList.remove('hidden');
+                // If user hits 'Cancel' or browser blocks it
+                alert("Please click 'Allow' or open link in Chrome to use the microphone.");
             }
-        }
-
-        function copyAndRedirect() {
-            const url = window.location.href;
-            navigator.clipboard.writeText(url).then(() => {
-                showToast("Copied! Opening Browser...");
-                setTimeout(() => {
-                    if (window.Telegram?.WebApp?.openLink) {
-                        window.Telegram.WebApp.openLink(url);
-                    } else {
-                        window.open(url, '_blank');
-                    }
-                }, 1000);
-            });
         }
 
         function handleJoin(e) {
@@ -365,6 +356,7 @@
             }
         }
 
+        let isSpeakerHigh = true;
         function toggleSpeaker() {
             isSpeakerHigh = !isSpeakerHigh;
             document.getElementById('speaker-icon').className = isSpeakerHigh ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-low';
@@ -387,7 +379,7 @@
         const sendBtn = document.getElementById('send-btn');
         const msgContainer = document.getElementById('message-container');
 
-        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
+        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
         function closeChat() { chatInput.blur(); window.focus(); setTimeout(() => { chatBox.classList.add('hidden'); mainControls.classList.remove('hidden'); sendBtn.style.display='none'; }, 100); }
         function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
 
