@@ -168,11 +168,9 @@
         let currentUser = "Sanatani Gojo";
         let initial = "S";
 
-        // DOM Elements Event Binding (Fixed Click Issue)
         document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("real-join-btn").addEventListener("click", startCall);
             
-            // Init Telegram Data
             try {
                 if (window.Telegram?.WebApp) {
                     window.Telegram.WebApp.ready();
@@ -204,19 +202,22 @@
         }
 
         async function startCall() {
-            // Instantly hide overlay on click to avoid double taps
             document.getElementById('join-overlay').style.display = 'none';
             showToast("Connecting...");
 
             if (typeof window.DailyIframe === 'undefined') {
-                showToast("Engine loading, try again in 2 seconds...");
+                showToast("Engine loading, try again...");
                 document.getElementById('join-overlay').style.display = 'flex';
                 return;
             }
 
             try {
                 if (!call) {
-                    call = window.DailyIframe.createCallObject({ audioSource: false, videoSource: false });
+                    // YAHAN FIX KIYA HAI: audioSource: true karna zaroori hai
+                    call = window.DailyIframe.createCallObject({ 
+                        audioSource: true, 
+                        videoSource: false 
+                    });
 
                     call.on('participant-joined', handleJoin)
                         .on('participant-updated', handleUpdate)
@@ -224,15 +225,21 @@
                         .on('active-speaker-change', handleSpeaker)
                         .on('track-started', playAudio)
                         .on('app-message', handleChat)
-                        .on('error', e => { showToast("Connection error!"); });
+                        .on('error', e => { showToast("Connection error!"); console.error(e); });
                 }
 
                 await call.join({ url: ROOM_URL, userName: currentUser });
+                
+                // Join hote hi mic mute kar do taaki 'Listening' mode me rahe
+                call.setLocalAudio(false);
+                isMuted = true;
+                
                 showToast("Joined Successfully!");
                 
             } catch(e) {
-                document.getElementById('join-overlay').style.display = 'flex';
-                showToast("Connection Failed. Try again.");
+                console.error(e);
+                // Agar permission block hui, toh error modal dikhao
+                document.getElementById('mic-error').classList.remove('hidden');
             }
         }
 
