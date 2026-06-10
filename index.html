@@ -11,29 +11,52 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
     <style>
-        :root { --bg-dark: #0f1115; --header-dark: #181d22; --btn-dark: #2b3a4a; --text-grey: #8b959d; --tg-blue: #3facf0; --tg-green: #34c759; --tg-red: #ff3b30; }
+        :root {
+            --bg-dark: #0f1115; --header-dark: #181d22; --btn-dark: #2b3a4a;
+            --text-grey: #8b959d; --tg-blue: #3facf0; --tg-green: #34c759;
+            --tg-red: #ff3b30;
+        }
+
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { margin: 0; padding: 0; background-color: var(--bg-dark); color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-dark); color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative;
+        }
+
         .hidden { display: none !important; }
 
-        /* CAPTCHA */
-        #captcha-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; z-index: 5000; position: absolute; width: 100%; background: var(--bg-dark); }
-        .captcha-box { background: var(--header-dark); padding: 30px; border-radius: 20px; text-align: center; width: 100%; max-width: 350px; border: 1px solid rgba(255,255,255,0.05); }
+        /* 1. CAPTCHA SCREEN */
+        #captcha-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100%; padding: 20px; z-index: 5000; position: absolute; width: 100%; background: var(--bg-dark);
+        }
+        .captcha-box {
+            background: var(--header-dark); padding: 30px; border-radius: 20px; text-align: center; width: 100%; max-width: 350px; border: 1px solid rgba(255,255,255,0.05);
+        }
         .captcha-box h2 { margin-top: 0; font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--tg-blue); }
         .math-problem { font-size: 28px; font-weight: bold; margin: 20px 0; letter-spacing: 2px; }
-        .captcha-input { width: 100%; padding: 15px; font-size: 18px; text-align: center; border-radius: 10px; border: 2px solid var(--btn-dark); background: rgba(255,255,255,0.05); color: white; outline: none; margin-bottom: 20px; }
+        .captcha-input {
+            width: 100%; padding: 15px; font-size: 18px; text-align: center; border-radius: 10px; border: 2px solid var(--btn-dark);
+            background: rgba(255,255,255,0.05); color: white; outline: none; margin-bottom: 20px;
+        }
         .captcha-input:focus { border-color: var(--tg-blue); }
-        .btn-submit { width: 100%; background: var(--tg-blue); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-submit {
+            width: 100%; background: var(--tg-blue); color: white; border: none; padding: 15px; border-radius: 10px;
+            font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
         .btn-submit:active { transform: scale(0.95); }
         .error-text { color: var(--tg-red); font-size: 14px; margin-top: 10px; display: none; }
 
-        /* JOIN OVERLAY */
+        /* 2. JOIN OVERLAY */
         .join-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
         .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(63, 172, 240, 0.3); }
         .join-btn:active { transform: scale(0.95); }
 
-        /* UI ELEMENTS */
+        /* 3. TELEGRAM MAIN UI */
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
+        .header-left { display: flex; align-items: center; gap: 15px; }
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
         .header-icons { display: flex; gap: 20px; }
         .header-icons i { font-size: 20px; color: var(--text-grey); cursor: pointer; }
@@ -48,20 +71,17 @@
         .status.speaking { color: var(--tg-green); }
         .mic-icon { font-size: 18px; color: var(--text-grey); }
         .mic-icon.green { color: var(--tg-green); }
+        
         .invite-row { display: flex; align-items: center; padding: 15px 20px; color: var(--tg-blue); font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
         .invite-row i { font-size: 20px; margin-right: 25px; margin-left: 10px; }
 
-        /* CHAT */
+        /* FLOATING CHAT BUBBLES */
         .floating-messages { position: absolute; bottom: 110px; left: 15px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: none; }
         .msg-bubble { background: rgba(24, 29, 34, 0.9); padding: 8px 14px; border-radius: 20px; display: flex; align-items: center; gap: 8px; animation: slideInBottom 0.3s ease forwards; max-width: 80vw; }
         @keyframes slideInBottom { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .msg-bubble span { font-size: 14px; color: white; word-break: break-word; }
-        .chat-input-area { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark); padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30; }
-        .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
-        .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
-        .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
 
-        /* CONTROLS */
+        /* BOTTOM CONTROLS */
         .bottom-controls { display: flex; justify-content: space-around; align-items: center; padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px; background-color: var(--header-dark); position: absolute; bottom: 0; left: 0; right: 0; width: 100%; z-index: 20; border-top: 1px solid rgba(255,255,255,0.05); }
         .control-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; justify-content: center; align-items: center; font-size: 22px; color: white; background-color: var(--btn-dark); cursor: pointer; transition: transform 0.1s ease; }
@@ -70,6 +90,14 @@
         .main-mic { width: 65px; height: 65px; font-size: 26px; }
         .main-mic.state-muted { background-color: var(--btn-dark); }
         .main-mic.state-live { background-color: var(--tg-green); }
+
+        /* CHAT INPUT AREA */
+        .chat-input-area { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: var(--header-dark); padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; align-items: center; gap: 10px; z-index: 30; }
+        .chat-input-area i.fa-face-smile { font-size: 24px; color: var(--text-grey); cursor: pointer; }
+        .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
+        .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
+
+        /* TOAST NOTIFICATION */
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; }
         .tg-toast.show { opacity: 1; }
     </style>
@@ -116,6 +144,7 @@
                 </div>
                 <i class="fa-solid fa-microphone-slash mic-icon" id="my-list-mic"></i>
             </div>
+
             <div class="invite-row" id="invite-btn" onclick="copyInviteLink()">
                 <i class="fa-solid fa-user-plus"></i>
                 <span>Invite Members</span>
@@ -126,10 +155,14 @@
 
         <div class="bottom-controls" id="main-controls">
             <div class="control-btn-wrap">
-                <button class="control-btn" onclick="showToast('Speaker ON')"><i class="fa-solid fa-volume-high" id="speaker-icon"></i></button>
+                <button class="control-btn" onclick="showToast('Speaker ON')">
+                    <i class="fa-solid fa-volume-high" id="speaker-icon"></i>
+                </button>
             </div>
             <div class="control-btn-wrap">
-                <button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()"><i class="fa-solid fa-user" id="main-mic-icon"></i></button>
+                <button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()">
+                    <i class="fa-solid fa-user" id="main-mic-icon"></i>
+                </button>
             </div>
             <div class="control-btn-wrap">
                 <button class="control-btn" onclick="openChat()"><i class="fa-solid fa-message"></i></button>
@@ -148,26 +181,24 @@
 
     <script>
         // ==========================================
-        // DYNAMIC ROOM FIX (TELEGRAM STRIP BYPASS)
+        // 1. DYNAMIC HASH ROOM LOGIC (TELEGRAM BYPASS)
         // ==========================================
         let ROOM_ID = null;
         
-        // Telegram WebApp bug bypass: check standard search param AND raw href
-        if (window.location.search.includes('room=')) {
-            ROOM_ID = new URLSearchParams(window.location.search).get('room');
-        } else if (window.location.href.includes('room=')) {
-            ROOM_ID = window.location.href.split('room=')[1].split('&')[0];
+        // Telegram WebView strip bug bypass using window.location.hash
+        if (window.location.hash.includes('#room=')) {
+            ROOM_ID = window.location.hash.split('#room=')[1].split('&')[0];
         }
 
-        // If still no room found, generate one
+        // Agar bina room link ke khola, to ek random room generate karke URL update karo
         if (!ROOM_ID) {
             ROOM_ID = "group_" + Math.random().toString(36).substring(2, 9);
-            window.history.replaceState(null, '', '?room=' + ROOM_ID);
+            window.location.hash = "#room=" + ROOM_ID;
         }
 
-        // VPS SIGNALING SERVER & BOT URL
+        // VPS SIGNALING SERVER SETUP & BOT REDIRECT
         const SERVER_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com"; 
-        const BOT_INVITE_LINK = "https://t.me/YourBotUsername_bot"; // LEAVE BUTTON YAHAN REDIRECT HOGA
+        const BOT_LINK = "https://t.me/YourBotUsername_bot"; 
 
         let socket;
         let myPeer;
@@ -177,8 +208,11 @@
         let initial = "U";
         let num1, num2, correctAnswer;
         const peers = {};
+        const dataConnections = {};
 
-        // INIT
+        // ==========================================
+        // INITIALIZATION & TG DATA
+        // ==========================================
         document.addEventListener("DOMContentLoaded", () => {
             try {
                 if (window.Telegram?.WebApp) {
@@ -196,6 +230,7 @@
             document.getElementById('my-avatar').innerText = initial;
             document.getElementById('my-avatar').style.backgroundColor = getColor(currentUser);
 
+            // Check if already captcha verified on this device
             if (localStorage.getItem('vc_device_verified') === 'true') {
                 document.getElementById('captcha-screen').classList.add('hidden');
                 document.getElementById('join-overlay').classList.remove('hidden');
@@ -204,7 +239,9 @@
             }
         });
 
-        // CAPTCHA
+        // ==========================================
+        // MATH CAPTCHA SYSTEM
+        // ==========================================
         function generateCaptcha() {
             num1 = Math.floor(Math.random() * 10) + 1;
             num2 = Math.floor(Math.random() * 10) + 1;
@@ -236,21 +273,24 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // WEBRTC & SOCKET CONNECTION
+        // ==========================================
+        // WEBRTC & PRIVATE SERVER CONNECTION
+        // ==========================================
         async function startCall() {
             document.getElementById('join-overlay').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
-            showToast("Joining Room: " + ROOM_ID);
+            showToast("Joining Room...");
 
             try {
+                // Request Mic upfront (Triggered by user interaction click)
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                localStream.getAudioTracks()[0].enabled = false;
+                localStream.getAudioTracks()[0].enabled = false; // Initial mute (Listening mode)
                 isMuted = true;
 
-                // Force WebSocket connection for Cloudflare stability
+                // Sync with VPS socket server
                 socket = io(SERVER_URL, { transports: ["websocket", "polling"] });
 
-                // PUBLIC PEERJS SERVER FOR 100% VOICE STABILITY (Bypasses Cloudflare limits)
+                // Connect to Public PeerJS Cloud for global voice streaming stability
                 myPeer = new Peer(); 
 
                 myPeer.on('open', id => {
@@ -258,6 +298,7 @@
                     showToast("Connected Successfully!");
                 });
 
+                // Listening for incoming audio streams
                 myPeer.on('call', call => {
                     call.answer(localStream);
                     const remoteName = call.metadata?.name || "Connecting...";
@@ -268,7 +309,9 @@
                     });
                 });
 
+                // Sync Chat messages and User profile metadata exchange
                 myPeer.on('connection', conn => {
+                    dataConnections[conn.peer] = conn;
                     conn.on('data', data => {
                         if (data.type === 'chat') {
                             displayMsg(data.name, data.text);
@@ -287,22 +330,26 @@
 
                 socket.on('user-disconnected', userId => {
                     if (peers[userId]) peers[userId].close();
+                    if (dataConnections[userId]) dataConnections[userId].close();
                     removeParticipantUI(userId);
                 });
 
             } catch(e) {
-                console.error("Mic Error:", e);
-                alert("Please allow Microphone access.");
+                console.error("Mic error:", e);
+                alert("Please grant Microphone permission to enter the Voice Chat.");
             }
         }
 
         function connectToNewUser(userId, stream) {
+            // Call remote peer and attach metadata packets
             const call = myPeer.call(userId, stream, { metadata: { name: currentUser, initial: initial } });
             call.on('stream', userAudioStream => { playRemoteStream(userAudioStream, userId); });
             call.on('close', () => { removeParticipantUI(userId); });
             peers[userId] = call;
 
+            // Connect data channel for name sync & active chat transmission
             const conn = myPeer.connect(userId);
+            dataConnections[userId] = conn;
             conn.on('open', () => { conn.send({ name: currentUser, initial: initial }); });
             conn.on('data', data => {
                 if (data.type === 'chat') displayMsg(data.name, data.text);
@@ -316,12 +363,14 @@
                 audio.id = 'audio-' + userId;
                 audio.srcObject = stream;
                 audio.autoplay = true;
-                document.body.appendChild(audio);
+    document.body.appendChild(audio);
                 addParticipantUI(userId, name, init);
             }
         }
 
-        // MIC
+        // ==========================================
+        // MIC MUTING AND SPEAKING SYSTEM
+        // ==========================================
         function toggleMainMic() {
             if(localStream) {
                 isMuted = !isMuted;
@@ -333,18 +382,24 @@
                 const statusText = document.getElementById('my-status');
 
                 if (!isMuted) {
-                    btn.className = 'control-btn main-mic state-live'; icon.className = 'fa-solid fa-microphone';
-                    listMic.className = 'fa-solid fa-microphone mic-icon green'; statusText.innerText = 'speaking';
+                    btn.className = 'control-btn main-mic state-live'; 
+                    icon.className = 'fa-solid fa-microphone';
+                    listMic.className = 'fa-solid fa-microphone mic-icon green'; 
+                    statusText.innerText = 'speaking';
                     document.getElementById('my-avatar').classList.add('speaking');
                 } else {
-                    btn.className = 'control-btn main-mic state-muted'; icon.className = 'fa-solid fa-user';
-                    listMic.className = 'fa-solid fa-microphone-slash mic-icon'; statusText.innerText = 'muted'; 
+                    btn.className = 'control-btn main-mic state-muted'; 
+                    icon.className = 'fa-solid fa-user';
+                    listMic.className = 'fa-solid fa-microphone-slash mic-icon'; 
+                    statusText.innerText = 'muted'; 
                     document.getElementById('my-avatar').classList.remove('speaking');
                 }
             } else { showToast("Microphone not ready yet."); }
         }
 
-        // CHAT
+        // ==========================================
+        // TEXT INTERCOM CHAT COMPONENT
+        // ==========================================
         const chatBox = document.getElementById('chat-box');
         const mainControls = document.getElementById('main-controls');
         const chatInput = document.getElementById('chat-input');
@@ -360,11 +415,16 @@
             const text = chatInput.value.trim(); 
             if(text === '') return;
             
-            Object.keys(peers).forEach(peerId => {
-                const conn = myPeer.connect(peerId);
-                conn.on('open', () => { conn.send({ type: 'chat', name: currentUser, text: text }); });
+            // Broadcast the text to all metadata active pipes
+            Object.keys(dataConnections).forEach(peerId => {
+                if (dataConnections[peerId] && dataConnections[peerId].open) {
+                    dataConnections[peerId].send({ type: 'chat', name: currentUser, text: text });
+                }
             });
-            displayMsg(currentUser, text); chatInput.value = ''; closeChat();
+
+            displayMsg(currentUser, text); 
+            chatInput.value = ''; 
+            closeChat();
         }
 
         function displayMsg(name, text) {
@@ -374,19 +434,22 @@
             setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 5000); }, 5000);
         }
 
-        // INVITE
+        // ==========================================
+        // INVITE & LEAVE SYSTEM WITH REDIRECTS
+        // ==========================================
         function copyInviteLink() {
-            const link = window.location.href;
+            // Build absolute hash URL manually to stay robust
+            const link = window.location.origin + window.location.pathname + "#room=" + ROOM_ID;
+            
             if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(link).then(() => showToast("Room link copied!"));
+                navigator.clipboard.writeText(link).then(() => showToast("Room Hash copied!"));
             } else {
                 let tempInput = document.createElement("input"); tempInput.value = link;
                 document.body.appendChild(tempInput); tempInput.select(); document.execCommand("copy");
-                document.body.removeChild(tempInput); showToast("Room link copied!");
+                document.body.removeChild(tempInput); showToast("Room Hash copied!");
             }
         }
 
-        // LEAVE (FORCE REDIRECT TO BOT)
         function leaveSession() {
             try {
                 if(localStream) localStream.getTracks().forEach(track => track.stop());
@@ -398,11 +461,13 @@
                 if (window.Telegram?.WebApp) window.Telegram.WebApp.close();
             } catch(e) {}
             
-            // Telegram close command ignore karne par sidha Bot par phek dega
-            window.location.href = BOT_INVITE_LINK;
+            // Safe escape routing back to Telegram Bot view context
+            window.location.href = BOT_LINK;
         }
 
-        // UI
+        // ==========================================
+        // DOM MANIPULATION & RENDERING LISTS
+        // ==========================================
         function addParticipantUI(uid, name, init) {
             if(document.getElementById(`user-${uid}`)) return;
             const list = document.getElementById('participant-list'); const inviteBtn = document.getElementById('invite-btn');
@@ -413,14 +478,21 @@
                 <i class="fa-solid fa-microphone-slash mic-icon"></i>`;
             list.insertBefore(row, inviteBtn);
         }
+
         function updateParticipantUI(uid, name, init) {
             const row = document.getElementById(`user-${uid}`);
-            if (row) { row.querySelector('.name').innerText = name; row.querySelector('.avatar').innerText = init; row.querySelector('.avatar').style.backgroundColor = getColor(name); } 
-            else { addParticipantUI(uid, name, init); }
+            if (row) { 
+                row.querySelector('.name').innerText = name; 
+                row.querySelector('.avatar').innerText = init; 
+                row.querySelector('.avatar').style.backgroundColor = getColor(name); 
+            } else { 
+                addParticipantUI(uid, name, init); 
+            }
         }
+
         function removeParticipantUI(uid) {
             const el = document.getElementById(`user-${uid}`); if(el) el.remove();
-            const aud = document.getElementById(`audio-${uid}`); if(aud) aud.remove();
+            const aud = document.getElementById('audio-' + uid); if(aud) aud.remove();
         }
     </script>
 </body>
