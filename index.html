@@ -48,7 +48,7 @@
         .header-icons i { font-size: 20px; color: var(--text-grey); cursor: pointer; }
         .participant-list { flex: 1; overflow-y: auto; padding: 0; padding-bottom: 90px; scroll-behavior: smooth; }
         .participant-item { display: flex; align-items: center; padding: 10px 20px; background-color: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .avatar { width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; margin-right: 15px; overflow: hidden; transition: 0.3s; border: 2px solid transparent; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; margin-right: 15px; overflow: hidden; transition: 0.3s; border: 2px solid transparent; color: white; }
         .avatar.speaking { border-color: var(--tg-green); box-shadow: 0 0 10px rgba(52,199,89,0.5); }
         .info { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .name { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -141,9 +141,15 @@
 
     <script>
         // ==========================================
-        // VPS SERVER CONNECTION CONFIG
+        // 1. IMPORTANT CONFIGURATIONS
         // ==========================================
-        const SERVER_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com"; // Your Cloudflare Tunnel URL
+        
+        // तुम्हारा VPS सर्वर लिंक (जो तुमने मुझे दिया था)
+        const SERVER_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com"; 
+        
+        // Yahan apne Telegram Bot ka link daal do (jo Invite me copy hoga)
+        const BOT_INVITE_LINK = "https://t.me/YourBotUsername_bot"; 
+
         const ROOM_ID = "telegram-global-vc";
 
         let socket;
@@ -220,20 +226,15 @@
             showToast("Connecting to Private Server...");
 
             try {
-                // Get mic upfront (Allowed since user clicked)
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 
-                // Force Mute to Start in Listening Mode
+                // Start Muted
                 localStream.getAudioTracks()[0].enabled = false;
                 isMuted = true;
 
-                // Connect to our VPS Socket
                 socket = io(SERVER_URL);
-                
-                // Extract host from the tunnel URL
                 const hostUrl = SERVER_URL.replace('https://', '');
 
-                // Connect to our VPS Peer Server
                 myPeer = new Peer(undefined, {
                     host: hostUrl,
                     port: 443,
@@ -246,11 +247,26 @@
                     showToast("Connected Successfully!");
                 });
 
-                // Answer incoming calls from others
+                // Answer incoming calls and get their Name via Metadata
                 myPeer.on('call', call => {
                     call.answer(localStream);
+                    
+                    const remoteName = call.metadata?.name || "Connecting...";
+                    const remoteInit = call.metadata?.initial || "?";
+                    
                     call.on('stream', userAudioStream => {
-                        playRemoteStream(userAudioStream, call.peer);
+                        playRemoteStream(userAudioStream, call.peer, remoteName, remoteInit);
+                    });
+                });
+
+                // Data Connection handler for reverse Name Sync
+                myPeer.on('connection', conn => {
+                    conn.on('data', data => {
+                        updateParticipantUI(conn.peer, data.name, data.initial);
+                    });
+                    // Reply back with our info
+                    conn.on('open', () => {
+                        conn.send({ name: currentUser, initial: initial });
                     });
                 });
 
@@ -272,17 +288,31 @@
         }
 
         function connectToNewUser(userId, stream) {
-            const call = myPeer.call(userId, stream);
+            // Send our Name and Initial in metadata while calling
+            const call = myPeer.call(userId, stream, { 
+                metadata: { name: currentUser, initial: initial } 
+            });
+            
             call.on('stream', userAudioStream => {
                 playRemoteStream(userAudioStream, userId);
             });
+            
             call.on('close', () => {
                 removeParticipantUI(userId);
             });
             peers[userId] = call;
+
+            // Open a data channel to ask for their name
+            const conn = myPeer.connect(userId);
+            conn.on('open', () => {
+                conn.send({ name: currentUser, initial: initial });
+            });
+            conn.on('data', data => {
+                updateParticipantUI(userId, data.name, data.initial);
+            });
         }
 
-        function playRemoteStream(stream, userId) {
+        function playRemoteStream(stream, userId, name = "Connecting...", init = "?") {
             if (!document.getElementById('audio-' + userId)) {
                 const audio = document.createElement('audio');
                 audio.id = 'audio-' + userId;
@@ -290,8 +320,7 @@
                 audio.autoplay = true;
                 document.body.appendChild(audio);
                 
-                // Generate a random name for the other user (since backend only handles raw IDs)
-                addParticipantUI(userId, "Member " + userId.substring(0, 4));
+                addParticipantUI(userId, name, init);
             }
         }
 
@@ -325,7 +354,7 @@
         }
 
         // 5. UI Helpers
-        function addParticipantUI(uid, name) {
+        function addParticipantUI(uid, name, init) {
             if(document.getElementById(`user-${uid}`)) return;
             const list = document.getElementById('participant-list');
             const inviteBtn = document.getElementById('invite-btn');
@@ -333,7 +362,7 @@
             row.className = 'participant-item';
             row.id = `user-${uid}`;
             row.innerHTML = `
-                <div class="avatar" style="background-color: ${getColor(name)}">${name.charAt(0).toUpperCase()}</div>
+                <div class="avatar" style="background-color: ${getColor(name)}">${init}</div>
                 <div class="info">
                     <span class="name">${name}</span>
                     <span class="status">listening</span>
@@ -341,6 +370,17 @@
                 <i class="fa-solid fa-microphone-slash mic-icon"></i>
             `;
             list.insertBefore(row, inviteBtn);
+        }
+
+        function updateParticipantUI(uid, name, init) {
+            const row = document.getElementById(`user-${uid}`);
+            if (row) {
+                row.querySelector('.name').innerText = name;
+                row.querySelector('.avatar').innerText = init;
+                row.querySelector('.avatar').style.backgroundColor = getColor(name);
+            } else {
+                addParticipantUI(uid, name, init);
+            }
         }
 
         function removeParticipantUI(uid) {
@@ -361,8 +401,9 @@
             else window.location.reload();
         }
 
+        // Fix: Bot Invite Link Copy
         function copyInviteLink() {
-            navigator.clipboard.writeText(window.location.href).then(() => showToast("Invite link copied!"));
+            navigator.clipboard.writeText(BOT_INVITE_LINK).then(() => showToast("Bot link copied!"));
         }
     </script>
 </body>
