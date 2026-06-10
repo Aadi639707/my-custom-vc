@@ -13,7 +13,7 @@
         :root {
             --bg-dark: #0f1115; --header-dark: #181d22; --btn-dark: #2b3a4a;
             --text-grey: #8b959d; --tg-blue: #3facf0; --tg-green: #34c759;
-            --tg-red: #ff3b30; --vh: 1vh;
+            --tg-red: #ff3b30; --cf-orange: #f6821f; --vh: 1vh;
         }
 
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
@@ -27,6 +27,15 @@
         }
 
         .hidden { display: none !important; }
+
+        /* CLOUDFLARE DDoS OVERLAY */
+        .cf-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; text-align: center; padding: 20px; }
+        .cf-spinner { width: 45px; height: 45px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--cf-orange); border-radius: 50%; animation: cf-spin 1s linear infinite; margin-bottom: 25px; }
+        @keyframes cf-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .cf-overlay h2 { font-size: 22px; margin-bottom: 12px; font-weight: 500; }
+        .cf-overlay p { color: var(--text-grey); font-size: 15px; line-height: 1.5; margin-bottom: 40px; }
+        .cf-logo { color: var(--text-grey); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        .cf-logo i { color: var(--cf-orange); font-size: 18px; }
 
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
         .header-left { display: flex; align-items: center; gap: 15px; }
@@ -77,23 +86,34 @@
         .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
         .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
 
-        .join-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; pointer-events: auto; }
-        .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(63, 172, 240, 0.3); position: relative; z-index: 1001; }
-        .join-btn:active { transform: scale(0.95); }
-
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; width: 80%; }
         .tg-toast.show { opacity: 1; }
+        
+        .error-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; z-index: 3000; flex-direction: column; text-align: center; padding: 20px; }
+        .error-modal h3 { color: #ff3b30; margin-bottom: 15px; font-size: 24px; }
+        .error-modal p { color: #fff; font-size: 16px; margin-bottom: 25px; line-height: 1.6; }
+        .copy-btn-large { background: var(--tg-blue); color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="tg-toast" id="toast-msg">Notification</div>
-
-    <div class="join-overlay" id="join-overlay">
-        <i class="fa-solid fa-microphone-lines" style="font-size: 50px; color: var(--tg-blue);"></i>
-        <h2 style="margin-top: 15px;">Group Voice Chat</h2>
-        <p style="color: var(--text-grey); font-size: 14px;">Tap below to connect</p>
-        <button id="real-join-btn" class="join-btn" onclick="startCall()">Join Room</button>
+    
+    <div class="cf-overlay" id="cf-overlay">
+        <div class="cf-spinner"></div>
+        <h2>Verifying your connection...</h2>
+        <p>Checking if the site connection is secure.<br>Please stand by.</p>
+        <div class="cf-logo">
+            <i class="fa-solid fa-cloud"></i>
+            <span>Protected by <b style="color:var(--cf-orange);">Cloudflare</b></span>
+        </div>
+    </div>
+    
+    <div class="error-modal hidden" id="mic-error">
+        <i class="fa-solid fa-microphone-slash" style="font-size: 60px; color: #ff3b30; margin-bottom: 20px;"></i>
+        <h3>Microphone Blocked</h3>
+        <p>App is blocking the microphone.<br><br>Please copy the link and open it in <b>Chrome</b> or <b>Safari</b> to speak.</p>
+        <button class="copy-btn-large" onclick="copyAndRedirect()">Copy & Open Browser</button>
     </div>
 
     <div class="top-header">
@@ -174,6 +194,13 @@
             document.getElementById('my-name').innerText = currentUser;
             document.getElementById('my-avatar').innerText = initial;
             document.getElementById('my-avatar').style.backgroundColor = getColor(currentUser);
+
+            // ===============================================
+            // AUTO JOIN LOGIC (Cloudflare DDoS Simulation)
+            // ===============================================
+            setTimeout(() => {
+                startCall();
+            }, 3000); // 3 seconds ka fake verification timer
         });
 
         const colors = ['#ff3b30', '#ff9500', '#ffcc00', '#4cd964', '#5ac8fa', '#007aff', '#5856d6'];
@@ -188,22 +215,15 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // ==========================================
-        // 1. JOIN ROOM (LISTENER MODE)
-        // ==========================================
         async function startCall() {
-            document.getElementById('join-overlay').style.display = 'none';
-            showToast("Connecting...");
-
             if (typeof window.DailyIframe === 'undefined') {
-                showToast("Engine loading, try again...");
-                document.getElementById('join-overlay').style.display = 'flex';
+                setTimeout(startCall, 500);
                 return;
             }
 
             try {
                 if (!call) {
-                    // Start WITHOUT requesting mic permission (audioSource: false)
+                    // SILENT JOIN AS LISTENER
                     call = window.DailyIframe.createCallObject({ 
                         audioSource: false, 
                         videoSource: false 
@@ -215,31 +235,28 @@
                         .on('active-speaker-change', handleSpeaker)
                         .on('track-started', playAudio)
                         .on('app-message', handleChat)
-                        .on('error', e => { showToast("Connection error!"); console.error(e); });
+                        .on('error', e => { console.error(e); });
                 }
 
                 await call.join({ url: ROOM_URL, userName: currentUser });
-                showToast("Joined! Tap Mic to Speak.");
+                
+                // Hide Cloudflare Screen
+                document.getElementById('cf-overlay').style.display = 'none';
+                showToast("Connected securely!");
                 
             } catch(e) {
                 console.error(e);
-                document.getElementById('join-overlay').style.display = 'flex';
-                showToast("Failed to join room.");
+                document.getElementById('cf-overlay').style.display = 'none';
+                showToast("Connection Failed.");
             }
         }
 
-        // ==========================================
-        // 2. TRIGGER MIC PERMISSION ON BUTTON CLICK
-        // ==========================================
         async function toggleMainMic() {
-            if(!call) { showToast("Not connected to room!"); return; }
+            if(!call) { showToast("Wait for connection..."); return; }
             
             try {
                 if (isMuted) {
-                    // Trigger the native browser pop-up to Allow/Deny
                     await navigator.mediaDevices.getUserMedia({ audio: true });
-                    
-                    // Once allowed, tell Daily.co to turn on the mic
                     await call.setLocalAudio(true);
                     isMuted = false;
 
@@ -253,7 +270,6 @@
                     listMic.className = 'fa-solid fa-microphone mic-icon green';
                     statusText.innerText = 'speaking';
                 } else {
-                    // Mute the mic
                     await call.setLocalAudio(false);
                     isMuted = true;
 
@@ -271,9 +287,22 @@
                 }
             } catch(e) {
                 isMuted = true;
-                // If user hits 'Cancel' or browser blocks it
-                alert("Please click 'Allow' or open link in Chrome to use the microphone.");
+                document.getElementById('mic-error').classList.remove('hidden');
             }
+        }
+
+        function copyAndRedirect() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast("Copied! Opening Browser...");
+                setTimeout(() => {
+                    if (window.Telegram?.WebApp?.openLink) {
+                        window.Telegram.WebApp.openLink(url);
+                    } else {
+                        window.open(url, '_blank');
+                    }
+                }, 1000);
+            });
         }
 
         function handleJoin(e) {
@@ -345,7 +374,7 @@
 
         function playAudio(e) {
             if (e.track.kind === 'audio' && !e.participant.local) {
-                let audioEl = document.getElementById(`audio-${e.participant.session_id}`);
+               let audioEl = document.getElementById(`audio-${e.participant.session_id}`);
                 if (!audioEl) {
                     audioEl = document.createElement('audio');
                     audioEl.id = `audio-${e.participant.session_id}`;
@@ -379,7 +408,7 @@
         const sendBtn = document.getElementById('send-btn');
         const msgContainer = document.getElementById('message-container');
 
-        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
+        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
         function closeChat() { chatInput.blur(); window.focus(); setTimeout(() => { chatBox.classList.add('hidden'); mainControls.classList.remove('hidden'); sendBtn.style.display='none'; }, 100); }
         function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
 
