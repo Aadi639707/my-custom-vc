@@ -81,11 +81,24 @@
 
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 200; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; width: 80%; }
         .tg-toast.show { opacity: 1; }
+        
+        /* Telegram Block Error UI */
+        .error-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 999; flex-direction: column; text-align: center; padding: 20px; }
+        .error-modal h3 { color: #ff3b30; margin-bottom: 10px; font-size: 22px; }
+        .error-modal p { color: #fff; font-size: 15px; margin-bottom: 20px; line-height: 1.5; }
+        .copy-btn-large { background: var(--tg-blue); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="tg-toast" id="toast-msg">Notification</div>
+    
+    <div class="error-modal hidden" id="mic-error">
+        <i class="fa-solid fa-microphone-slash" style="font-size: 50px; color: #ff3b30; margin-bottom: 15px;"></i>
+        <h3>Mic Blocked by App</h3>
+        <p>Telegram is not allowing microphone access.<br>Please copy the link and open it in <b>Chrome</b> to talk.</p>
+        <button class="copy-btn-large" onclick="copyInviteLink(); document.getElementById('mic-error').classList.add('hidden');">Copy Room Link</button>
+    </div>
 
     <div class="join-overlay" id="join-overlay">
         <i class="fa-solid fa-microphone-lines" style="font-size: 50px; color: var(--tg-blue);"></i>
@@ -181,20 +194,13 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // ==============================
-        // AUTO-REDIRECT SMART LOGIC
-        // ==============================
         async function startCall() {
             document.getElementById('join-overlay').classList.add('hidden');
-            showToast("Connecting to Room...");
+            showToast("Connecting...");
 
             try {
-                // 1. Chupke se mic ki permission mangna
-                const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-                stream.getTracks().forEach(t => t.stop()); // Permission milte hi track free kar dena
-                
-                // 2. Agar permission mil gayi, toh Daily.co start karo
                 if (!call) {
+                    // SILENT JOIN: No mic permission asked here!
                     call = window.DailyIframe.createCallObject({ audioSource: false, videoSource: false });
 
                     call.on('participant-joined', handleJoin)
@@ -210,16 +216,8 @@
                 showToast("Joined! Tap mic to speak.");
                 
             } catch(e) {
-                // 3. AGAR TELEGRAM NE MIC BLOCK KIYA HAI (Yahan magic hoga)
-                showToast("Redirecting to Safe Browser...");
-                
-                if (tg && tg.openLink) {
-                    // Ye line user ko bina 3 dot dabaye seedha Chrome me phek degi
-                    tg.openLink(window.location.href);
-                } else {
-                    document.getElementById('join-overlay').classList.remove('hidden');
-                    showToast("Please Allow Microphone in Browser Settings!");
-                }
+                document.getElementById('join-overlay').classList.remove('hidden');
+                showToast("Connection Failed. Try again.");
             }
         }
 
@@ -307,6 +305,7 @@
             if(!call) { showToast("Not connected to room!"); return; }
             
             try {
+                // ASK PERMISSION ONLY WHEN MIC BUTTON CLICKED
                 isMuted = !isMuted;
                 await call.setLocalAudio(!isMuted);
 
@@ -328,7 +327,8 @@
                 }
             } catch(e) {
                 isMuted = true;
-                showToast("Please Allow Microphone in Browser Settings!");
+                // SHOW CUSTOM MODAL IF BLOCKED
+                document.getElementById('mic-error').classList.remove('hidden');
             }
         }
 
@@ -346,7 +346,7 @@
         }
 
         function copyInviteLink() {
-            navigator.clipboard.writeText(window.location.href).then(() => showToast("Invite link copied!"));
+            navigator.clipboard.writeText(window.location.href).then(() => showToast("Invite link copied! Open in Chrome."));
         }
 
         const chatBox = document.getElementById('chat-box');
@@ -375,4 +375,8 @@
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<span><b>${name}:</b> ${text}</span>`;
             msgContainer.appendChild(bubble);
-            setTimeout(() => { bub
+            setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 5000); }, 5000);
+        }
+    </script>
+</body>
+</html
