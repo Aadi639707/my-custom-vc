@@ -2,137 +2,166 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Telegram Voice Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Premium Voice Chat</title>
     
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://meet.jit.si/external_api.js"></script>
 
     <style>
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            background-color: #0f1115; /* Telegram Dark Theme Color */
-            overflow: hidden; 
+        :root {
+            --bg: #0f1115; --surface: #181d22; --blue: #3facf0; --red: #ff3b30;
         }
-        #meet-container { 
-            width: 100%; 
-            height: 100%; 
+        body, html {
+            margin: 0; padding: 0; height: 100%; background-color: var(--bg);
+            color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
         }
-        /* Loading Screen UI */
-        #loading-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #0f1115;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+        /* Captcha Screen */
+        #captcha-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px;
         }
-        .spinner {
-            width: 40px; height: 40px;
-            border: 4px solid rgba(63, 172, 240, 0.2);
-            border-top: 4px solid #3facf0; /* Telegram Blue */
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+        .captcha-box {
+            background: var(--surface); padding: 30px; border-radius: 20px; text-align: center; width: 100%; max-width: 350px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .captcha-box h2 { margin-top: 0; font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--blue); }
+        .math-problem { font-size: 28px; font-weight: bold; margin: 20px 0; letter-spacing: 2px; }
+        .captcha-input {
+            width: 100%; padding: 15px; font-size: 18px; text-align: center; border-radius: 10px; border: 2px solid #2b3a4a;
+            background: rgba(255,255,255,0.05); color: white; outline: none; margin-bottom: 20px;
+        }
+        .captcha-input:focus { border-color: var(--blue); }
+        .btn-submit {
+            width: 100%; background: var(--blue); color: white; border: none; padding: 15px; border-radius: 10px;
+            font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn-submit:active { transform: scale(0.95); }
+        .error-text { color: var(--red); font-size: 14px; margin-top: 10px; display: none; }
+
+        /* Entry Screen */
+        #entry-screen {
+            display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;
+        }
+        .entry-icon { font-size: 60px; color: var(--blue); margin-bottom: 20px; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        .join-btn {
+            background: var(--blue); border: none; color: white; padding: 16px 50px; border-radius: 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(63, 172, 240, 0.4);
+        }
+
+        /* Jitsi Container */
+        #meet-container { display: none; width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <div class="spinner"></div>
-        <h2>Joining Secure Room...</h2>
-        <p style="color: #8b959d; font-size: 14px;">Please wait</p>
+    <div id="captcha-screen">
+        <div class="captcha-box">
+            <h2><i class="fa-solid fa-shield-halved"></i> Security Check</h2>
+            <p style="color: #8b959d; font-size: 14px;">Verify you are human to enter.</p>
+            
+            <div class="math-problem" id="math-problem">5 + 4 = ?</div>
+            <input type="number" id="captcha-answer" class="captcha-input" placeholder="Enter answer">
+            
+            <button class="btn-submit" onclick="verifyCaptcha()">Verify</button>
+            <div class="error-text" id="error-msg">Incorrect answer, try again!</div>
+        </div>
+    </div>
+
+    <div id="entry-screen">
+        <i class="fa-solid fa-microphone-lines entry-icon"></i>
+        <h2 style="margin: 0; font-size: 24px;">Group Voice Chat</h2>
+        <p style="color: #8b959d; font-size: 15px; margin-top: 10px;">Connection verified & secure.</p>
+        <button class="join-btn" onclick="startJitsiVC()">Join Room</button>
     </div>
 
     <div id="meet-container"></div>
 
     <script>
-        window.onload = () => {
-            // 1. Get Telegram User Name (If opened via Telegram)
-            let userName = "Telegram User"; 
-            
-            try {
-                if (window.Telegram && window.Telegram.WebApp) {
-                    window.Telegram.WebApp.expand(); // Full screen
-                    window.Telegram.WebApp.setHeaderColor('#0f1115'); // Top bar color
-                    
-                    if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                        userName = window.Telegram.WebApp.initDataUnsafe.user.first_name;
-                    }
-                }
-            } catch(e) {
-                console.log("Not opened in Telegram");
-            }
+        // Variables for Captcha
+        let num1, num2, correctAnswer;
 
-            // 2. Setup Jitsi Meet
+        // On Page Load
+        window.onload = () => {
+            // Check if device is already verified
+            if (localStorage.getItem('vc_device_verified') === 'true') {
+                // If verified, skip Captcha and show Join Screen
+                document.getElementById('captcha-screen').style.display = 'none';
+                document.getElementById('entry-screen').style.display = 'flex';
+            } else {
+                // If new device, generate Captcha
+                generateCaptcha();
+            }
+        };
+
+        function generateCaptcha() {
+            num1 = Math.floor(Math.random() * 10) + 1; // 1 to 10
+            num2 = Math.floor(Math.random() * 10) + 1; // 1 to 10
+            correctAnswer = num1 + num2;
+            document.getElementById('math-problem').innerText = `${num1} + ${num2} = ?`;
+            document.getElementById('captcha-answer').value = '';
+            document.getElementById('error-msg').style.display = 'none';
+        }
+
+        function verifyCaptcha() {
+            const userAnswer = parseInt(document.getElementById('captcha-answer').value);
+            
+            if (userAnswer === correctAnswer) {
+                // Save to phone memory (Local Storage)
+                localStorage.setItem('vc_device_verified', 'true');
+                
+                // Switch to Join Screen
+                document.getElementById('captcha-screen').style.display = 'none';
+                document.getElementById('entry-screen').style.display = 'flex';
+            } else {
+                // Show Error and change question
+                document.getElementById('error-msg').style.display = 'block';
+                generateCaptcha();
+            }
+        }
+
+        function startJitsiVC() {
+            // Hide entry screen, show Jitsi
+            document.getElementById('entry-screen').style.display = 'none';
+            document.getElementById('meet-container').style.display = 'block';
+
+            // Jitsi Configuration
             const domain = 'meet.jit.si';
             const options = {
-                // Room Name: इसे चाहो तो बदल लेना, बस स्पेस मत देना
-                roomName: 'TG_Secure_Voice_Room_2026', 
+                // Room name - Tum isko badal sakte ho
+                roomName: 'TG_Premium_Group_Chat_9900X', 
                 width: '100%',
                 height: '100%',
                 parentNode: document.querySelector('#meet-container'),
                 
-                // User Details
-                userInfo: {
-                    displayName: userName
-                },
-                
-                // Core Settings
                 configOverwrite: { 
-                    prejoinPageEnabled: false, // फालतू की स्क्रीन बंद
-                    startWithAudioMuted: true, // जॉइन करते ही म्यूट रहेगा
-                    startWithVideoMuted: true, // वीडियो बंद रहेगा
-                    disableDeepLinking: true, // Jitsi App डाउनलोड करने का प्रॉम्प्ट नहीं आएगा
-                    enableNoAudioDetection: false,
-                    enableNoisyMicDetection: false
+                    prejoinPageEnabled: false, // Direct Entry
+                    startWithAudioMuted: true, // Join muted
+                    startWithVideoMuted: true, // Video off
+                    disableDeepLinking: true   // Force web browser mode, no app download
                 },
-                
-                // UI Settings (Telegram जैसा क्लीन लुक)
                 interfaceConfigOverwrite: {
                     SHOW_JITSI_WATERMARK: false,
-                    SHOW_WATERMARK_FOR_GUESTS: false,
-                    SHOW_BRAND_WATERMARK: false,
-                    SHOW_POWERED_BY: false,
-                    DEFAULT_BACKGROUND: '#0f1115', // Dark theme
+                    DEFAULT_BACKGROUND: '#0f1115',
                     TOOLBAR_BUTTONS: [
-                        'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-                        'fodeviceselection', 'hangup', 'profile', 'chat', 'settings', 
-                        'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
-                        'tileview', 'select-background', 'download', 'help', 'mute-everyone',
-                        'security'
+                        'microphone', 'camera', 'desktop', 'chat', 'participants', 'hangup', 'tileview'
                     ]
                 }
             };
             
-            // Start the API
+            // Start VC
             const api = new JitsiMeetExternalAPI(domain, options);
-
-            // Hide loading screen once video conference is ready
-            api.addEventListener('videoConferenceJoined', () => {
-                document.getElementById('loading-screen').style.display = 'none';
-            });
             
-            // Handle user leaving
+            // Set Default Name
+            api.executeCommand('displayName', 'User');
+            
+            // When user hangs up, reload page
             api.addEventListener('videoConferenceLeft', () => {
-                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.close) {
-                    window.Telegram.WebApp.close();
-                } else {
-                    document.getElementById('loading-screen').style.display = 'flex';
-                    document.getElementById('loading-screen').innerHTML = '<h2>You left the chat</h2>';
-                }
+                window.location.reload();
             });
-        };
+        }
     </script>
-
 </body>
 </html>
