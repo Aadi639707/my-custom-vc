@@ -140,17 +140,26 @@
     </div>
 
     <script>
-        // ==========================================
-        // 1. IMPORTANT CONFIGURATIONS
+                // ==========================================
+        // 1. DYNAMIC ROOM & INVITE CONFIGURATION
         // ==========================================
         
-        // तुम्हारा VPS सर्वर लिंक (जो तुमने मुझे दिया था)
         const SERVER_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com"; 
         
-        // Yahan apne Telegram Bot ka link daal do (jo Invite me copy hoga)
-        const BOT_INVITE_LINK = "https://t.me/YourBotUsername_bot"; 
+        // URL se Room ID nikalne ka auto-system
+        const urlParams = new URLSearchParams(window.location.search);
+        let ROOM_ID = urlParams.get('room');
 
-        const ROOM_ID = "telegram-global-vc";
+        // Agar kisi ne direct bina room ke link khol diya, to ek naya random room bana do
+        if (!ROOM_ID) {
+            ROOM_ID = "private_" + Math.random().toString(36).substring(2, 9);
+            // URL me automatically naya room ID jod do taki invite link sahi bane
+            window.history.replaceState(null, '', '?room=' + ROOM_ID);
+        }
+
+        // Ab invite link bot ka nahi, balki isi current room ka banega
+        // Ex: https://my-custom-vc.vercel.app/?room=group_123
+        const CURRENT_INVITE_LINK = window.location.href; 
 
         let socket;
         let myPeer;
