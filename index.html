@@ -28,15 +28,18 @@
 
         .hidden { display: none !important; }
 
-        /* CLOUDFLARE DDoS OVERLAY */
+        /* CLOUDFLARE SECURE OVERLAY */
         .cf-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; text-align: center; padding: 20px; }
-        .cf-spinner { width: 45px; height: 45px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--cf-orange); border-radius: 50%; animation: cf-spin 1s linear infinite; margin-bottom: 25px; }
+        .cf-spinner { width: 45px; height: 45px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--cf-orange); border-radius: 50%; animation: cf-spin 1s linear infinite; margin-bottom: 25px; display: none; }
         @keyframes cf-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .cf-overlay h2 { font-size: 22px; margin-bottom: 12px; font-weight: 500; }
-        .cf-overlay p { color: var(--text-grey); font-size: 15px; line-height: 1.5; margin-bottom: 40px; }
-        .cf-logo { color: var(--text-grey); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        .cf-overlay p { color: var(--text-grey); font-size: 15px; line-height: 1.5; margin-bottom: 30px; }
+        .cf-logo { color: var(--text-grey); font-size: 13px; display: flex; align-items: center; gap: 8px; margin-top: 20px; }
         .cf-logo i { color: var(--cf-orange); font-size: 18px; }
+        .verify-btn { background: transparent; border: 2px solid var(--cf-orange); color: var(--cf-orange); padding: 12px 30px; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .verify-btn:active { background: var(--cf-orange); color: white; }
 
+        /* TELEGRAM UI */
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
         .header-left { display: flex; align-items: center; gap: 15px; }
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
@@ -100,9 +103,10 @@
     <div class="tg-toast" id="toast-msg">Notification</div>
     
     <div class="cf-overlay" id="cf-overlay">
-        <div class="cf-spinner"></div>
-        <h2>Verifying your connection...</h2>
-        <p>Checking if the site connection is secure.<br>Please stand by.</p>
+        <div class="cf-spinner" id="cf-spinner"></div>
+        <h2 id="cf-title">Security Check</h2>
+        <p id="cf-desc">Verify you are human to access the Voice Room.</p>
+        <button class="verify-btn" id="verify-btn" onclick="initiateConnection()">Tap to Verify</button>
         <div class="cf-logo">
             <i class="fa-solid fa-cloud"></i>
             <span>Protected by <b style="color:var(--cf-orange);">Cloudflare</b></span>
@@ -194,13 +198,6 @@
             document.getElementById('my-name').innerText = currentUser;
             document.getElementById('my-avatar').innerText = initial;
             document.getElementById('my-avatar').style.backgroundColor = getColor(currentUser);
-
-            // ===============================================
-            // AUTO JOIN LOGIC (Cloudflare DDoS Simulation)
-            // ===============================================
-            setTimeout(() => {
-                startCall();
-            }, 3000); // 3 seconds ka fake verification timer
         });
 
         const colors = ['#ff3b30', '#ff9500', '#ffcc00', '#4cd964', '#5ac8fa', '#007aff', '#5856d6'];
@@ -215,6 +212,32 @@
             clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
+        function setupEvents(c) {
+            c.on('participant-joined', handleJoin)
+             .on('participant-updated', handleUpdate)
+             .on('participant-left', handleLeft)
+             .on('active-speaker-change', handleSpeaker)
+             .on('track-started', playAudio)
+             .on('app-message', handleChat)
+             .on('error', e => { console.error("Daily Error:", e); });
+        }
+
+        // ===============================================
+        // SECURE JOIN LOGIC WITH FALLBACK
+        // ===============================================
+        function initiateConnection() {
+            // Change UI to loading spinner
+            document.getElementById('verify-btn').style.display = 'none';
+            document.getElementById('cf-spinner').style.display = 'block';
+            document.getElementById('cf-title').innerText = 'Verifying your connection...';
+            document.getElementById('cf-desc').innerText = 'Checking if the site connection is secure.\nPlease stand by.';
+            
+            // 2 second animation
+            setTimeout(() => {
+                startCall();
+            }, 2000);
+        }
+
         async function startCall() {
             if (typeof window.DailyIframe === 'undefined') {
                 setTimeout(startCall, 500);
@@ -222,32 +245,43 @@
             }
 
             try {
+                // TRY 1: Default Join (Might fail if mic strictly needed and telegram blocks it)
                 if (!call) {
-                    // SILENT JOIN AS LISTENER
-                    call = window.DailyIframe.createCallObject({ 
-                        audioSource: false, 
-                        videoSource: false 
-                    });
-
-                    call.on('participant-joined', handleJoin)
-                        .on('participant-updated', handleUpdate)
-                        .on('participant-left', handleLeft)
-                        .on('active-speaker-change', handleSpeaker)
-                        .on('track-started', playAudio)
-                        .on('app-message', handleChat)
-                        .on('error', e => { console.error(e); });
+                    call = window.DailyIframe.createCallObject();
+                    setupEvents(call);
                 }
-
+                
                 await call.join({ url: ROOM_URL, userName: currentUser });
                 
-                // Hide Cloudflare Screen
+                // Success! Force Mute immediately so user is just "listening"
+                call.setLocalAudio(false);
+                isMuted = true;
+                
                 document.getElementById('cf-overlay').style.display = 'none';
                 showToast("Connected securely!");
                 
             } catch(e) {
-                console.error(e);
-                document.getElementById('cf-overlay').style.display = 'none';
-                showToast("Connection Failed.");
+                console.error("First Join Failed, Retrying as Listener...", e);
+                
+                // TRY 2: Explicitly tell Daily we don't want Mic/Cam on start
+                try {
+                    if (call) { call.destroy(); call = null; }
+                    call = window.DailyIframe.createCallObject({ audioSource: false, videoSource: false });
+                    setupEvents(call);
+                    
+                    await call.join({ url: ROOM_URL, userName: currentUser });
+                    isMuted = true;
+                    
+                    document.getElementById('cf-overlay').style.display = 'none';
+                    showToast("Joined as Listener.");
+                } catch(err) {
+                    console.error("Fatal Error:", err);
+                    document.getElementById('cf-overlay').style.display = 'flex';
+                    document.getElementById('verify-btn').style.display = 'block';
+                    document.getElementById('cf-spinner').style.display = 'none';
+                    document.getElementById('cf-title').innerText = 'Connection Failed';
+                    document.getElementById('cf-desc').innerText = 'Could not reach server. Tap to retry.';
+                }
             }
         }
 
@@ -256,7 +290,7 @@
             
             try {
                 if (isMuted) {
-                    await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Try to turn ON Mic
                     await call.setLocalAudio(true);
                     isMuted = false;
 
@@ -270,6 +304,7 @@
                     listMic.className = 'fa-solid fa-microphone mic-icon green';
                     statusText.innerText = 'speaking';
                 } else {
+                    // Turn OFF Mic
                     await call.setLocalAudio(false);
                     isMuted = true;
 
@@ -286,6 +321,7 @@
                     document.getElementById('my-avatar').classList.remove('speaking');
                 }
             } catch(e) {
+                console.error("Mic block:", e);
                 isMuted = true;
                 document.getElementById('mic-error').classList.remove('hidden');
             }
@@ -374,7 +410,7 @@
 
         function playAudio(e) {
             if (e.track.kind === 'audio' && !e.participant.local) {
-               let audioEl = document.getElementById(`audio-${e.participant.session_id}`);
+                let audioEl = document.getElementById(`audio-${e.participant.session_id}`);
                 if (!audioEl) {
                     audioEl = document.createElement('audio');
                     audioEl.id = `audio-${e.participant.session_id}`;
