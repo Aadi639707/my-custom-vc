@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Telegram Voice Chat Clone</title>
+    <title>Telegram Voice Chat</title>
     
-    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+    <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -47,21 +47,27 @@
         /* Join Screen Overlay */
         .join-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .join-btn { background: var(--blue); border: none; color: white; padding: 16px 50px; border-radius: 30px; font-size: 18px; font-weight: 600; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3); }
+        
+        /* Toast */
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; z-index: 2000; opacity: 0; transition: 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
     </style>
 </head>
 <body>
+
+    <div class="toast" id="toast">Notification</div>
 
     <div class="join-overlay" id="overlay">
         <div style="width: 100px; height: 100px; border-radius: 50%; background: rgba(10, 132, 255, 0.1); display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
             <i class="fa-solid fa-microphone-lines" style="font-size: 45px; color: var(--blue);"></i>
         </div>
         <h2 style="margin: 0; font-size: 24px;">Voice Chat</h2>
-        <p style="color: #8e8e93; margin-top: 8px;">15-20 Members Supported</p>
+        <p style="color: #8e8e93; margin-top: 8px;">Tap to connect with group</p>
         <button class="join-btn" onclick="startVC()">Join VC</button>
     </div>
 
     <div class="header">
-        <h2 class="title" id="roomTitle">Group VC</h2>
+        <h2 class="title">Group VC</h2>
         <div class="subtitle"><span id="userCount">1</span> listening</div>
     </div>
 
@@ -86,11 +92,11 @@
     </div>
 
     <script>
-        // ============================================
-        // यहाँ अपनी बिल्कुल नई AGORA APP ID डालें 👇
-        // ============================================
-        const APP_ID = "YOUR_AGORA_APP_ID_HERE"; 
-        const CHANNEL_NAME = "global_vc_room";
+        // TUMHARI DAILY.CO ROOM LINK
+        const ROOM_URL = "https://tgvc.daily.co/MWDAHj6kvgx8JYBsUXsQ"; 
+        
+        let callObject = null;
+        let isMuted = true;
         
         // Telegram Web App API Settings
         const tg = window.Telegram?.WebApp;
@@ -111,103 +117,119 @@
 
         // Avatar Colors Generator
         const colors = ['#ff3b30', '#ff9500', '#ffcc00', '#4cd964', '#5ac8fa', '#007aff', '#5856d6', '#ff2d55'];
-        function getColor(uid) { return colors[String(uid).charCodeAt(0) % colors.length]; }
+        function getColor(nameStr) { 
+            let hash = 0;
+            for (let i = 0; i < nameStr.length; i++) hash = nameStr.charCodeAt(i) + ((hash << 5) - hash);
+            return colors[Math.abs(hash) % colors.length]; 
+        }
         document.getElementById('my-avatar').style.background = getColor(userName);
 
-        // Agora RTC Engine Logic
-        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-        let localAudioTrack = null;
-        let isMuted = true;
-        let remoteUsers = {};
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg; toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
 
         async function startVC() {
-            if(APP_ID === "YOUR_AGORA_APP_ID_HERE") {
-                alert("Please add your Agora App ID in the code first!");
-                return;
-            }
-            
             document.getElementById('overlay').style.display = 'none';
-            
-            try {
-                // Join the 20-person server room
-                await client.join(APP_ID, CHANNEL_NAME, null, null);
-                localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                await client.publish([localAudioTrack]);
-                
-                // Keep mic muted by default
-                localAudioTrack.setMuted(true);
-                
-                client.on("user-published", handleUserJoined);
-                client.on("user-unpublished", handleUserLeft);
-                
-                // The magic: Detect who is speaking and show Green Ring
-                client.enableAudioVolumeIndicator();
-                client.on("volume-indicator", volumes => {
-                    volumes.forEach(vol => {
-                        if(vol.uid === client.uid) {
-                            document.getElementById('my-avatar').classList.toggle('speaking', vol.level > 5 && !isMuted);
-                        } else {
-                            const avatarEl = document.getElementById('avatar-' + vol.uid);
-                            if(avatarEl) avatarEl.classList.toggle('speaking', vol.level > 5);
-                        }
-                    });
+            showToast("Connecting to Server...");
+
+            if (!callObject) {
+                callObject = window.DailyIframe.createCallObject({
+                    audioSource: true,
+                    videoSource: false
                 });
 
+                callObject.on('participant-joined', handleJoined)
+                          .on('participant-updated', handleUpdated)
+                          .on('participant-left', handleLeft)
+                          .on('track-started', handleTrackStarted)
+                          .on('active-speaker-change', handleSpeaker)
+                          .on('error', (e) => showToast("Error connecting!"));
+            }
+
+            try {
+                await callObject.join({ url: ROOM_URL, userName: userName });
+                
+                // Mute mic initially
+                callObject.setLocalAudio(false); 
+                isMuted = true;
+                syncMicUI();
+                showToast("Joined Successfully!");
+                updateUserCount();
+                
             } catch (error) {
                 console.error("Connection Error:", error);
-                alert("Connection failed! Check network or App ID.");
+                showToast("Connection failed!");
             }
         }
 
-        async function handleUserJoined(user, mediaType) {
-            await client.subscribe(user, mediaType);
-            remoteUsers[user.uid] = user;
-            
-            if (mediaType === "audio") {
-                user.audioTrack.play(); // Play their voice
-                
-                // Add their Avatar to the Grid
-                if(!document.getElementById('card-' + user.uid)) {
-                    const grid = document.getElementById('userGrid');
-                    const card = document.createElement('div');
-                    card.className = 'user-card';
-                    card.id = 'card-' + user.uid;
-                    
-                    const name = "User " + String(user.uid).substring(0,4);
-                    const bg = getColor(user.uid);
+        function handleJoined(e) {
+            const p = e.participant;
+            if (p.local) return; 
+            addCard(p.session_id, p.user_name);
+            updateUserCount();
+        }
 
-                    card.innerHTML = `
-                        <div class="avatar-container">
-                            <div class="avatar" id="avatar-${user.uid}" style="background: ${bg}">${name.charAt(0)}</div>
-                            <div class="mic-status live"><i class="fa-solid fa-microphone"></i></div>
-                        </div>
-                        <div class="user-name">${name}</div>
-                    `;
-                    grid.appendChild(card);
-                    updateUserCount();
+        function handleLeft(e) {
+            const p = e.participant;
+            removeCard(p.session_id);
+            updateUserCount();
+        }
+
+        function handleUpdated(e) {
+            const p = e.participant;
+            if (!p.local) {
+                const micIcon = document.getElementById(`mic-icon-${p.session_id}`);
+                if (micIcon) {
+                    if (p.audio) {
+                        micIcon.className = "mic-status live";
+                        micIcon.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+                    } else {
+                        micIcon.className = "mic-status";
+                        micIcon.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
+                    }
                 }
             }
         }
 
-        function handleUserLeft(user) {
-            delete remoteUsers[user.uid];
-            const card = document.getElementById('card-' + user.uid);
-            if(card) card.remove(); // Remove them from grid
-            updateUserCount();
+        function handleTrackStarted(e) {
+            if (e.track.kind === 'audio' && !e.participant.local) {
+                let audioEl = document.getElementById(`audio-${e.participant.session_id}`);
+                if (!audioEl) {
+                    audioEl = document.createElement('audio');
+                    audioEl.id = `audio-${e.participant.session_id}`;
+                    audioEl.autoplay = true;
+                    document.body.appendChild(audioEl);
+                }
+                audioEl.srcObject = new MediaStream([e.track]);
+            }
         }
 
-        function updateUserCount() {
-            const count = Object.keys(remoteUsers).length + 1; // +1 for you
-            document.getElementById('userCount').innerText = count;
+        function handleSpeaker(e) {
+            // Remove speaking class from all
+            document.querySelectorAll('.avatar').forEach(el => el.classList.remove('speaking'));
+
+            const speakerId = e.activeSpeaker?.peerId;
+            if (speakerId) {
+                const isLocal = (speakerId === callObject.participants().local.session_id);
+                if (isLocal && !isMuted) {
+                    document.getElementById('my-avatar').classList.add('speaking');
+                } else {
+                    const avatarEl = document.getElementById(`avatar-${speakerId}`);
+                    if (avatarEl) avatarEl.classList.add('speaking');
+                }
+            }
         }
 
-        // Toggle Mic just like Telegram
         function toggleMic() {
-            if(!localAudioTrack) return;
-            
+            if (!callObject) return;
             isMuted = !isMuted;
-            localAudioTrack.setMuted(isMuted);
-            
+            callObject.setLocalAudio(!isMuted);
+            syncMicUI();
+        }
+
+        function syncMicUI() {
             const btn = document.getElementById('mainMicBtn');
             const micStatus = document.getElementById('my-mic-status');
             
@@ -225,20 +247,53 @@
             }
         }
 
+        function addCard(id, name) {
+            if(document.getElementById(`card-${id}`)) return;
+            const grid = document.getElementById('userGrid');
+            const card = document.createElement('div');
+            card.className = 'user-card';
+            card.id = `card-${id}`;
+            
+            const displayName = name || "User";
+            const initialLetter = displayName.charAt(0).toUpperCase();
+            const bg = getColor(displayName);
+
+            card.innerHTML = `
+                <div class="avatar-container">
+                    <div class="avatar" id="avatar-${id}" style="background: ${bg}">${initialLetter}</div>
+                    <div class="mic-status" id="mic-icon-${id}"><i class="fa-solid fa-microphone-slash"></i></div>
+                </div>
+                <div class="user-name">${displayName}</div>
+            `;
+            grid.appendChild(card);
+        }
+
+        function removeCard(id) {
+            const card = document.getElementById(`card-${id}`);
+            if(card) card.remove();
+            const audio = document.getElementById(`audio-${id}`);
+            if(audio) audio.remove();
+        }
+
+        function updateUserCount() {
+            if (!callObject) return;
+            const participants = callObject.participants();
+            document.getElementById('userCount').innerText = Object.keys(participants).length;
+        }
+
         function copyLink() {
             const link = window.location.href;
             navigator.clipboard.writeText(link).then(() => {
-                alert("Group VC Link Copied!");
+                showToast("Invite Link Copied!");
             });
         }
 
         function leaveChat() {
-            if(localAudioTrack) {
-                localAudioTrack.stop();
-                localAudioTrack.close();
+            if(callObject) {
+                callObject.leave();
+                callObject.destroy();
             }
-            client.leave();
-            window.location.reload(); // Reset screen
+            window.location.reload(); 
         }
     </script>
 </body>
