@@ -79,7 +79,7 @@
         .join-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; }
 
-        .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 200; opacity: 0; transition: 0.3s ease; pointer-events: none; }
+        .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; z-index: 200; opacity: 0; transition: 0.3s ease; pointer-events: none; text-align: center; width: 80%; }
         .tg-toast.show { opacity: 1; }
     </style>
 </head>
@@ -148,7 +148,6 @@
     </form>
 
     <script>
-        // TUMHARI DAILY.CO ROOM LINK
         const ROOM_URL = "https://tgvc.daily.co/MWDAHj6kvgx8JYBsUXsQ";
         
         let call = null;
@@ -183,34 +182,44 @@
         }
 
         // ==============================
-        // FIXED CALL JOINING LOGIC
+        // AUTO-REDIRECT SMART LOGIC
         // ==============================
         async function startCall() {
             document.getElementById('join-overlay').classList.add('hidden');
-            showToast("Connecting...");
-
-            if (!call) {
-                call = window.DailyIframe.createCallObject({
-                    audioSource: false, // Start WITHOUT asking mic
-                    videoSource: false
-                });
-
-                call.on('participant-joined', handleJoin)
-                    .on('participant-updated', handleUpdate)
-                    .on('participant-left', handleLeft)
-                    .on('active-speaker-change', handleSpeaker)
-                    .on('track-started', playAudio)
-                    .on('app-message', handleChat)
-                    .on('error', e => { showToast("Connection error!"); console.log(e); });
-            }
+            showToast("Connecting to Room...");
 
             try {
-                // Now it will join successfully as a listener without freezing
+                // 1. Chupke se mic ki permission mangna
+                const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+                stream.getTracks().forEach(t => t.stop()); // Permission milte hi track free kar dena
+                
+                // 2. Agar permission mil gayi, toh Daily.co start karo
+                if (!call) {
+                    call = window.DailyIframe.createCallObject({ audioSource: false, videoSource: false });
+
+                    call.on('participant-joined', handleJoin)
+                        .on('participant-updated', handleUpdate)
+                        .on('participant-left', handleLeft)
+                        .on('active-speaker-change', handleSpeaker)
+                        .on('track-started', playAudio)
+                        .on('app-message', handleChat)
+                        .on('error', e => { showToast("Connection error!"); console.log(e); });
+                }
+
                 await call.join({ url: ROOM_URL, userName: currentUser });
-                showToast("Joined Group VC!");
+                showToast("Joined! Tap mic to speak.");
+                
             } catch(e) {
-                document.getElementById('join-overlay').classList.remove('hidden');
-                showToast("Connection Failed. Try again.");
+                // 3. AGAR TELEGRAM NE MIC BLOCK KIYA HAI (Yahan magic hoga)
+                showToast("Redirecting to Safe Browser...");
+                
+                if (tg && tg.openLink) {
+                    // Ye line user ko bina 3 dot dabaye seedha Chrome me phek degi
+                    tg.openLink(window.location.href);
+                } else {
+                    document.getElementById('join-overlay').classList.remove('hidden');
+                    showToast("Please Allow Microphone in Browser Settings!");
+                }
             }
         }
 
@@ -220,7 +229,6 @@
             
             const list = document.getElementById('participant-list');
             const inviteBtn = document.getElementById('invite-btn');
-            
             const row = document.createElement('div');
             row.className = 'participant-item';
             row.id = `user-${p.session_id}`;
@@ -262,17 +270,13 @@
 
         function handleSpeaker(e) {
             document.querySelectorAll('.status').forEach(el => {
-                if(el.innerText === 'speaking') {
-                    el.innerText = 'listening';
-                    el.classList.remove('speaking');
-                }
+                if(el.innerText === 'speaking') { el.innerText = 'listening'; el.classList.remove('speaking'); }
             });
             document.querySelectorAll('.avatar').forEach(el => el.classList.remove('speaking'));
 
             const speakerId = e.activeSpeaker?.peerId;
             if (speakerId) {
                 const isLocal = (speakerId === call.participants().local.session_id);
-                
                 if (isLocal && !isMuted) {
                     document.getElementById('my-status').innerText = 'speaking';
                     document.getElementById('my-status').classList.add('speaking');
@@ -280,10 +284,7 @@
                 } else if (!isLocal) {
                     const statusEl = document.getElementById(`status-${speakerId}`);
                     const avatarEl = document.getElementById(`avatar-${speakerId}`);
-                    if (statusEl) {
-                        statusEl.innerText = 'speaking';
-                        statusEl.classList.add('speaking');
-                    }
+                    if (statusEl) { statusEl.innerText = 'speaking'; statusEl.classList.add('speaking'); }
                     if (avatarEl) avatarEl.classList.add('speaking');
                 }
             }
@@ -302,14 +303,10 @@
             }
         }
 
-        // ==============================
-        // MIC PERMISSION & TOGGLE FIX
-        // ==============================
         async function toggleMainMic() {
             if(!call) { showToast("Not connected to room!"); return; }
             
             try {
-                // Ye line tabhi permission mangegi jab user khud mic button dabayega
                 isMuted = !isMuted;
                 await call.setLocalAudio(!isMuted);
 
@@ -378,8 +375,4 @@
             const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
             bubble.innerHTML = `<span><b>${name}:</b> ${text}</span>`;
             msgContainer.appendChild(bubble);
-            setTimeout(() => { bubble.style.opacity = '0'; setTimeout(() => bubble.remove(), 300); }, 5000);
-        }
-    </script>
-</body>
-</html>
+            setTimeout(() => { bub
