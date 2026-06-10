@@ -2,215 +2,244 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Premium Voice Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Telegram Voice Chat Clone</title>
+    
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(180deg, #1a2332 0%, #0f1419 100%); color: white; height: 100vh; overflow: hidden; }
-        .container { width: 100%; max-width: 420px; height: 100vh; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; position: relative; }
+        :root { --bg: #1c1c1d; --surface: #2c2c2e; --blue: #0a84ff; --green: #30d158; --red: #ff453a; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { margin: 0; background: var(--bg); color: white; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        .join-room-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .join-room-content { text-align: center; padding: 40px 30px; background: rgba(255, 255, 255, 0.1); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(20px); max-width: 320px; width: 90%; }
-        .join-room-btn { background: linear-gradient(45deg, #3facf0, #34c759); border: none; color: white; padding: 15px 30px; border-radius: 30px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; box-shadow: 0 10px 30px rgba(52, 199, 89, 0.3); margin-top: 20px; }
+        /* VC Header (Telegram Style) */
+        .header { padding: 20px 20px 10px; text-align: center; z-index: 10; background: var(--bg); }
+        .title { font-size: 19px; font-weight: 600; margin: 0; }
+        .subtitle { color: var(--green); font-size: 14px; margin-top: 5px; font-weight: 500; }
         
-        .participants-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 16px; border-radius: 30px; font-weight: 600; cursor: pointer; z-index: 100; display: flex; align-items: center; gap: 8px; }
-        .participants-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(15px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .participants-content { background: rgba(30,30,30,0.98); border-radius: 20px; padding: 30px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); }
-        .close-btn { background: rgba(255,255,255,0.2); border: none; color: white; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; float: right; font-size: 16px; }
-        .participant-item { background: rgba(50,50,50,0.6); padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,0.05); }
-        .participant-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(45deg, #3facf0, #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 18px; }
+        /* Participants Grid */
+        .grid-container { flex: 1; overflow-y: auto; padding: 20px; }
+        .grid { display: flex; flex-wrap: wrap; gap: 25px 15px; justify-content: center; align-content: flex-start; }
+        .user-card { width: 85px; display: flex; flex-direction: column; align-items: center; }
+        .avatar-container { position: relative; width: 75px; height: 75px; }
+        .avatar { width: 100%; height: 100%; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 30px; font-weight: 600; color: white; transition: 0.2s; box-shadow: 0 0 0 0px var(--bg); }
         
-        .music-player { flex: 1; display: flex; flex-direction: column; opacity: 0; transition: opacity 0.5s; }
-        .music-player.show { opacity: 1; }
-        .album-art { width: min(250px, 70vw); height: min(250px, 70vw); border-radius: 50%; margin: 80px auto 30px; background: linear-gradient(45deg, #1a2332, #2b3a4a); display: flex; align-items: center; justify-content: center; font-size: 5rem; box-shadow: 0 15px 50px rgba(0,0,0,0.6); border: 4px solid rgba(255,255,255,0.05); position: relative; transition: 0.3s; }
-        .album-art.speaking { border-color: #34c759; box-shadow: 0 0 40px rgba(52,199,89,0.5); }
+        /* Speaking Animation Ring */
+        .avatar.speaking { box-shadow: 0 0 0 3px var(--green); transform: scale(1.05); }
         
-        .song-info { text-align: center; margin-bottom: 40px; }
-        .song-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
-        .artist-name { font-size: 1.1rem; color: #3facf0; font-weight: 500; }
+        /* Mic Status Badge */
+        .mic-status { position: absolute; bottom: 0; right: 0; background: var(--surface); width: 26px; height: 26px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 11px; border: 3px solid var(--bg); color: #8e8e93; }
+        .mic-status.live { color: var(--green); }
         
-        .controls { display: flex; align-items: center; justify-content: center; gap: 30px; margin-top: auto; padding-bottom: 40px; }
-        .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; background: rgba(255,255,255,0.1); color: white; font-size: 1.2rem; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
-        .play-btn { width: 75px; height: 75px; font-size: 1.8rem; background: #ff3b30; box-shadow: 0 10px 20px rgba(255,59,48,0.3); }
-        .play-btn.live { background: #34c759; box-shadow: 0 10px 20px rgba(52,199,89,0.3); }
+        .user-name { margin-top: 8px; font-size: 13px; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f2f2f7; font-weight: 500; }
         
-        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 9999; font-weight: 500; white-space: nowrap; }
-        .toast.show { opacity: 1; }
-        .hidden { display: none !important; }
+        /* Bottom Controls (Telegram Style) */
+        .bottom-bar { display: flex; justify-content: space-around; align-items: center; padding: 15px 30px 35px; background: var(--bg); border-top: 1px solid rgba(255,255,255,0.05); }
+        .side-btn { width: 50px; height: 50px; border-radius: 50%; background: var(--surface); border: none; color: white; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .side-btn.leave { color: var(--red); }
+        
+        /* Massive Main Mic Button */
+        .main-mic { width: 85px; height: 85px; border-radius: 50%; border: none; background: var(--blue); color: white; font-size: 32px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; }
+        .main-mic.live { background: var(--green); box-shadow: 0 4px 15px rgba(48, 209, 88, 0.3); }
+        .main-mic:active { transform: scale(0.9); }
+        
+        /* Join Screen Overlay */
+        .join-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .join-btn { background: var(--blue); border: none; color: white; padding: 16px 50px; border-radius: 30px; font-size: 18px; font-weight: 600; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3); }
     </style>
 </head>
 <body>
-    <div class="toast" id="toastMsg">Notification</div>
-    
-    <div class="container">
-        <button id="participantsBtn" class="participants-btn hidden">
-            <i class="fa-solid fa-users"></i> <span id="participantsCount" style="margin-left: 5px;">1</span>
-        </button>
 
-        <div id="participantsModal" class="participants-modal hidden">
-            <div class="participants-content">
-                <button class="close-btn" onclick="document.getElementById('participantsModal').classList.add('hidden')">✕</button>
-                <h3 style="margin-bottom: 20px; font-size: 1.3rem;">👥 In Call</h3>
-                <div id="participantsList"></div>
-            </div>
+    <div class="join-overlay" id="overlay">
+        <div style="width: 100px; height: 100px; border-radius: 50%; background: rgba(10, 132, 255, 0.1); display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
+            <i class="fa-solid fa-microphone-lines" style="font-size: 45px; color: var(--blue);"></i>
         </div>
+        <h2 style="margin: 0; font-size: 24px;">Voice Chat</h2>
+        <p style="color: #8e8e93; margin-top: 8px;">15-20 Members Supported</p>
+        <button class="join-btn" onclick="startVC()">Join VC</button>
+    </div>
 
-        <div id="joinRoomOverlay" class="join-room-overlay">
-            <div class="join-room-content">
-                <i class="fa-solid fa-microphone-lines" style="font-size: 4rem; color: #3facf0; margin-bottom: 20px;"></i>
-                <h2 class="join-room-title" id="joinTitle">Voice Room</h2>
-                <p class="join-room-subtitle">Secure peer-to-peer connection</p>
-                <button id="joinRoomBtn" class="join-room-btn" onclick="joinCall()">Tap to Join Call</button>
-            </div>
-        </div>
+    <div class="header">
+        <h2 class="title" id="roomTitle">Group VC</h2>
+        <div class="subtitle"><span id="userCount">1</span> listening</div>
+    </div>
 
-        <div id="playerContainer" class="music-player">
-            <div id="albumArt" class="album-art">
-                <span id="myAvatar">S</span>
+    <div class="grid-container">
+        <div class="grid" id="userGrid">
+            
+            <div class="user-card" id="my-card">
+                <div class="avatar-container">
+                    <div class="avatar" style="background: #ff9500;" id="my-avatar">S</div>
+                    <div class="mic-status" id="my-mic-status"><i class="fa-solid fa-microphone-slash"></i></div>
+                </div>
+                <div class="user-name" id="my-name">Sanatani Gojo</div>
             </div>
-            <div class="song-info">
-                <div id="songTitle" class="song-title">Sanatani Gojo</div>
-                <div id="artistName" class="artist-name">Mic is Muted</div>
-            </div>
-            <div class="controls">
-                <button class="control-btn" onclick="copyInvite()"><i class="fa-solid fa-user-plus"></i></button>
-                <button id="micBtn" class="control-btn play-btn" onclick="toggleMic()"><i class="fa-solid fa-microphone-slash"></i></button>
-                <button class="control-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash" style="color: #ff3b30;"></i></button>
-            </div>
+
         </div>
     </div>
 
+    <div class="bottom-bar">
+        <button class="side-btn" onclick="copyLink()"><i class="fa-solid fa-user-plus"></i></button>
+        <button class="main-mic" id="mainMicBtn" onclick="toggleMic()"><i class="fa-solid fa-microphone-slash"></i></button>
+        <button class="side-btn leave" onclick="leaveChat()"><i class="fa-solid fa-phone-slash"></i></button>
+    </div>
+
     <script>
-        const tg = window.Telegram?.WebApp;
-        if(tg) { tg.expand(); try { tg.setHeaderColor('#181d22'); } catch(e){} }
+        // ============================================
+        // यहाँ अपनी बिल्कुल नई AGORA APP ID डालें 👇
+        // ============================================
+        const APP_ID = "YOUR_AGORA_APP_ID_HERE"; 
+        const CHANNEL_NAME = "global_vc_room";
         
-        let currentUser = "Sanatani Gojo";
-        let currentInitial = "S";
-        let peer = null;
-        let localStream = null;
+        // Telegram Web App API Settings
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.expand(); try { tg.setHeaderColor('#1c1c1d'); } catch(e){} }
+        
+        let userName = "Sanatani Gojo";
+        let initial = "S";
+
+        try {
+            if (tg?.initDataUnsafe?.user) {
+                userName = tg.initDataUnsafe.user.first_name;
+                initial = userName.charAt(0).toUpperCase();
+            }
+        } catch(e) {}
+
+        document.getElementById('my-name').innerText = userName;
+        document.getElementById('my-avatar').innerText = initial;
+
+        // Avatar Colors Generator
+        const colors = ['#ff3b30', '#ff9500', '#ffcc00', '#4cd964', '#5ac8fa', '#007aff', '#5856d6', '#ff2d55'];
+        function getColor(uid) { return colors[String(uid).charCodeAt(0) % colors.length]; }
+        document.getElementById('my-avatar').style.background = getColor(userName);
+
+        // Agora RTC Engine Logic
+        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        let localAudioTrack = null;
         let isMuted = true;
-        let roomId = new URLSearchParams(window.location.search).get('room');
+        let remoteUsers = {};
 
-        function showToast(msg) {
-            const t = document.getElementById('toastMsg');
-            t.innerText = msg; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        function initPeer() {
-            if (typeof Peer === 'undefined') { setTimeout(initPeer, 500); return; }
-            peer = new Peer();
-            peer.on('open', id => {
-                if(!roomId) roomId = id;
-                document.getElementById('joinTitle').innerText = (roomId === id) ? "Create Room" : "Friend's Room";
-                showToast("Server Connected!");
-            });
+        async function startVC() {
+            if(APP_ID === "YOUR_AGORA_APP_ID_HERE") {
+                alert("Please add your Agora App ID in the code first!");
+                return;
+            }
             
-            peer.on('call', call => {
-                if(!localStream) {
-                    navigator.mediaDevices.getUserMedia({audio:true}).then(s => {
-                        localStream = s; localStream.getAudioTracks()[0].enabled = !isMuted;
-                        call.answer(localStream);
-                    }).catch(() => call.answer());
-                } else {
-                    call.answer(localStream);
-                }
-                call.on('stream', stream => addFriend(stream, call.peer));
-                call.on('close', () => removeFriend(call.peer));
-            });
-        }
-
-        async function joinCall() {
-            document.getElementById('joinRoomOverlay').classList.add('hidden');
-            document.getElementById('playerContainer').classList.add('show');
-            document.getElementById('participantsBtn').classList.remove('hidden');
-            addSelfToList();
+            document.getElementById('overlay').style.display = 'none';
             
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({audio:true});
-                localStream.getAudioTracks()[0].enabled = false; 
-                if(roomId && roomId !== peer.id) {
-                    showToast("Connecting to friend...");
-                    const call = peer.call(roomId, localStream);
-                    call.on('stream', stream => addFriend(stream, roomId));
-                }
-            } catch(e) { showToast("Mic permission required!"); }
+                // Join the 20-person server room
+                await client.join(APP_ID, CHANNEL_NAME, null, null);
+                localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                await client.publish([localAudioTrack]);
+                
+                // Keep mic muted by default
+                localAudioTrack.setMuted(true);
+                
+                client.on("user-published", handleUserJoined);
+                client.on("user-unpublished", handleUserLeft);
+                
+                // The magic: Detect who is speaking and show Green Ring
+                client.enableAudioVolumeIndicator();
+                client.on("volume-indicator", volumes => {
+                    volumes.forEach(vol => {
+                        if(vol.uid === client.uid) {
+                            document.getElementById('my-avatar').classList.toggle('speaking', vol.level > 5 && !isMuted);
+                        } else {
+                            const avatarEl = document.getElementById('avatar-' + vol.uid);
+                            if(avatarEl) avatarEl.classList.toggle('speaking', vol.level > 5);
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("Connection Error:", error);
+                alert("Connection failed! Check network or App ID.");
+            }
         }
 
-        function toggleMic() {
-            if(!localStream) { showToast("Mic not connected yet"); return; }
-            isMuted = !isMuted;
-            localStream.getAudioTracks()[0].enabled = !isMuted;
+        async function handleUserJoined(user, mediaType) {
+            await client.subscribe(user, mediaType);
+            remoteUsers[user.uid] = user;
             
-            const btn = document.getElementById('micBtn');
-            const status = document.getElementById('artistName');
-            const art = document.getElementById('albumArt');
+            if (mediaType === "audio") {
+                user.audioTrack.play(); // Play their voice
+                
+                // Add their Avatar to the Grid
+                if(!document.getElementById('card-' + user.uid)) {
+                    const grid = document.getElementById('userGrid');
+                    const card = document.createElement('div');
+                    card.className = 'user-card';
+                    card.id = 'card-' + user.uid;
+                    
+                    const name = "User " + String(user.uid).substring(0,4);
+                    const bg = getColor(user.uid);
+
+                    card.innerHTML = `
+                        <div class="avatar-container">
+                            <div class="avatar" id="avatar-${user.uid}" style="background: ${bg}">${name.charAt(0)}</div>
+                            <div class="mic-status live"><i class="fa-solid fa-microphone"></i></div>
+                        </div>
+                        <div class="user-name">${name}</div>
+                    `;
+                    grid.appendChild(card);
+                    updateUserCount();
+                }
+            }
+        }
+
+        function handleUserLeft(user) {
+            delete remoteUsers[user.uid];
+            const card = document.getElementById('card-' + user.uid);
+            if(card) card.remove(); // Remove them from grid
+            updateUserCount();
+        }
+
+        function updateUserCount() {
+            const count = Object.keys(remoteUsers).length + 1; // +1 for you
+            document.getElementById('userCount').innerText = count;
+        }
+
+        // Toggle Mic just like Telegram
+        function toggleMic() {
+            if(!localAudioTrack) return;
+            
+            isMuted = !isMuted;
+            localAudioTrack.setMuted(isMuted);
+            
+            const btn = document.getElementById('mainMicBtn');
+            const micStatus = document.getElementById('my-mic-status');
             
             if(!isMuted) {
                 btn.classList.add('live');
                 btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-                status.innerText = "Speaking...";
-                status.style.color = "#34c759";
-                art.classList.add('speaking');
+                micStatus.classList.add('live');
+                micStatus.innerHTML = '<i class="fa-solid fa-microphone"></i>';
             } else {
                 btn.classList.remove('live');
                 btn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
-                status.innerText = "Mic is Muted";
-                status.style.color = "#3facf0";
-                art.classList.remove('speaking');
+                micStatus.classList.remove('live');
+                micStatus.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
+                document.getElementById('my-avatar').classList.remove('speaking');
             }
         }
 
-        function addFriend(stream, id) {
-            if(document.getElementById('audio-'+id)) return;
-            const audio = document.createElement('audio');
-            audio.id = 'audio-'+id; audio.srcObject = stream; audio.autoplay = true;
-            document.body.appendChild(audio);
-            
-            const list = document.getElementById('participantsList');
-            list.innerHTML += `<div class="participant-item" id="user-${id}">
-                <div class="participant-avatar" style="background: linear-gradient(45deg, #ff6b6b, #ffa500);">F</div>
-                <div style="flex:1"><div style="font-weight:600; font-size:16px;">Friend</div><div style="font-size:12px; color:#34c759; margin-top:3px;">Connected</div></div>
-            </div>`;
-            updateCount(); showToast("Friend Joined!");
+        function copyLink() {
+            const link = window.location.href;
+            navigator.clipboard.writeText(link).then(() => {
+                alert("Group VC Link Copied!");
+            });
         }
 
-        function removeFriend(id) {
-            document.getElementById('user-'+id)?.remove();
-            document.getElementById('audio-'+id)?.remove();
-            updateCount(); showToast("Friend Left");
+        function leaveChat() {
+            if(localAudioTrack) {
+                localAudioTrack.stop();
+                localAudioTrack.close();
+            }
+            client.leave();
+            window.location.reload(); // Reset screen
         }
-
-        function addSelfToList() {
-            document.getElementById('participantsList').innerHTML = `<div class="participant-item">
-                <div class="participant-avatar">${currentInitial}</div>
-                <div style="flex:1"><div style="font-weight:600; font-size:16px;">${currentUser}</div><div style="font-size:12px; color:#3facf0; margin-top:3px;">This is you</div></div>
-            </div>`;
-        }
-
-        function updateCount() {
-            const count = document.getElementById('participantsList').children.length;
-            document.getElementById('participantsCount').innerText = count;
-        }
-
-        function copyInvite() {
-            if(!peer || !peer.id) { showToast("Wait for connection..."); return; }
-            const link = window.location.origin + window.location.pathname + "?room=" + (roomId === peer.id ? peer.id : roomId);
-            navigator.clipboard.writeText(link).then(() => showToast("Invite Link Copied!"));
-        }
-
-        function endCall() {
-            if(localStream) localStream.getTracks().forEach(t => t.stop());
-            if(peer) peer.destroy();
-            window.location.href = window.location.origin + window.location.pathname;
-        }
-
-        document.getElementById('participantsBtn').onclick = () => document.getElementById('participantsModal').classList.remove('hidden');
-
-        initPeer();
     </script>
 </body>
 </html>
