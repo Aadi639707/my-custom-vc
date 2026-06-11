@@ -23,10 +23,8 @@
             display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative;
         }
         .hidden { display: none !important; }
-
-        /* CAPTCHA SCREEN */
         #captcha-screen {
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100%; padding: 20px; z-index: 5000; position: absolute; width: 100%; background: var(--bg-dark);
         }
         .captcha-box {
@@ -42,13 +40,9 @@
         }
         .btn-submit { width: 100%; background: var(--tg-blue); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; }
         .error-text { color: var(--tg-red); font-size: 14px; margin-top: 10px; display: none; }
-
-        /* JOIN OVERLAY */
         .join-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; }
         .join-overlay h2 { font-size: 24px; margin: 20px 0; }
-        .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 12px rgba(63, 172, 240, 0.4); }
-
-        /* MAIN UI */
+        .join-btn { background: var(--tg-blue); border: none; color: white; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 30px; box-shadow: 0 4px 12px rgba(63,172,240,0.4); }
         .top-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--header-dark); }
         .title-area h2 { margin: 0; font-size: 18px; font-weight: 500; }
         .participant-list { flex: 1; overflow-y: auto; padding: 0; padding-bottom: 90px; }
@@ -62,479 +56,395 @@
         .mic-icon.green { color: var(--tg-green); }
         .invite-row { display: flex; align-items: center; padding: 15px 20px; color: var(--tg-blue); font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
         .invite-row i { font-size: 20px; margin-right: 25px; margin-left: 10px; }
-
-        /* FLOATING MESSAGES */
         .floating-messages { position: absolute; bottom: 110px; left: 15px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: none; }
         .msg-bubble { background: rgba(24,29,34,0.9); padding: 8px 14px; border-radius: 20px; display: flex; align-items: center; gap: 8px; max-width: 80vw; }
         .msg-bubble span { font-size: 14px; color: white; }
-
-        /* CONTROLS */
         .bottom-controls { display: flex; justify-content: space-around; align-items: center; padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px; background-color: var(--header-dark); position: absolute; bottom: 0; left: 0; right: 0; z-index: 20; border-top: 1px solid rgba(255,255,255,0.05); }
         .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; justify-content: center; align-items: center; font-size: 22px; color: white; background-color: var(--btn-dark); cursor: pointer; }
         .control-btn.leave { background-color: var(--tg-red); font-size: 26px; }
         .main-mic { width: 65px; height: 65px; font-size: 26px; }
         .main-mic.state-live { background-color: var(--tg-green); }
-
-        /* CHAT INPUT */
         .chat-input-area { position: absolute; bottom: 0; left: 0; right: 0; background-color: var(--header-dark); padding: 10px 15px calc(15px + env(safe-area-inset-bottom)) 15px; display: flex; gap: 10px; align-items: center; z-index: 30; }
         .chat-input-area input { flex: 1; background-color: rgba(255,255,255,0.05); border: none; padding: 12px 15px; border-radius: 20px; color: white; font-size: 16px; outline: none; }
         .send-btn { color: var(--tg-blue); background: none; border: none; font-size: 22px; display: none; cursor: pointer; }
-
         .tg-toast { position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background-color: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 25px; font-size: 14px; opacity: 0; transition: opacity 0.3s; z-index: 2000; }
         .tg-toast.show { opacity: 1; }
     </style>
 </head>
 <body>
 
-    <div class="tg-toast" id="toast-msg">Notification</div>
+<div class="tg-toast" id="toast-msg">Notification</div>
 
-    <div id="captcha-screen">
-        <div class="captcha-box">
-            <h2><i class="fa-solid fa-shield-halved"></i> Security Check</h2>
-            <p style="color: #8b959d; font-size: 14px;">Verify you are human to enter.</p>
-            <div class="math-problem" id="math-problem">5 + 4 = ?</div>
-            <input type="number" id="captcha-answer" class="captcha-input" placeholder="Enter answer">
-            <button class="btn-submit" onclick="verifyCaptcha()">Verify</button>
-            <div class="error-text" id="error-msg">Incorrect answer, try again!</div>
+<div id="captcha-screen">
+    <div class="captcha-box">
+        <h2><i class="fa-solid fa-shield-halved"></i> Security Check</h2>
+        <p style="color: #8b959d; font-size: 14px;">Verify you are human to enter.</p>
+        <div class="math-problem" id="math-problem">5 + 4 = ?</div>
+        <input type="number" id="captcha-answer" class="captcha-input" placeholder="Enter answer">
+        <button class="btn-submit" onclick="verifyCaptcha()">Verify</button>
+        <div class="error-text" id="error-msg">Incorrect answer, try again!</div>
+    </div>
+</div>
+
+<div class="join-overlay hidden" id="join-overlay">
+    <i class="fa-solid fa-microphone-lines" style="font-size: 50px; color: var(--tg-blue);"></i>
+    <h2 style="margin-top: 15px;">Voice Chat</h2>
+    <p style="color: var(--text-grey); font-size: 14px;">Connection secure. Tap to connect.</p>
+    <button class="join-btn" onclick="startCall()">Join Voice Chat</button>
+</div>
+
+<div id="main-ui" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+    <div class="top-header">
+        <div class="header-left"><div class="title-area"><h2 id="vc-title">Voice Chat Room</h2></div></div>
+        <div class="header-icons">
+            <i class="fa-solid fa-desktop" onclick="showToast('Screen sharing coming soon')"></i>
         </div>
     </div>
-
-    <div class="join-overlay hidden" id="join-overlay">
-        <i class="fa-solid fa-microphone-lines" style="font-size: 50px; color: var(--tg-blue);"></i>
-        <h2 id="join-room-title" style="margin-top: 15px;">Voice Chat</h2>
-        <p style="color: var(--text-grey); font-size: 14px;">Connection secure. Tap to connect.</p>
-        <button class="join-btn" onclick="startCall()">Join Voice Chat</button>
-    </div>
-
-    <div id="main-ui" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
-        <div class="top-header">
-            <div class="header-left"><div class="title-area"><h2 id="vc-title">Voice Chat Room</h2></div></div>
-            <div class="header-icons">
-                <i class="fa-solid fa-desktop" onclick="showToast('Screen sharing coming soon')"></i>
+    <div class="participant-list" id="participant-list">
+        <div class="participant-item" id="my-row">
+            <div class="avatar" id="my-avatar">U</div>
+            <div class="info">
+                <span class="name" id="my-name">User</span>
+                <span class="status" id="my-status">listening</span>
             </div>
+            <i class="fa-solid fa-microphone-slash mic-icon" id="my-list-mic"></i>
         </div>
-
-        <div class="participant-list" id="participant-list">
-            <div class="participant-item" id="my-row">
-                <div class="avatar" id="my-avatar">U</div>
-                <div class="info">
-                    <span class="name" id="my-name">User</span>
-                    <span class="status" id="my-status">listening</span>
-                </div>
-                <i class="fa-solid fa-microphone-slash mic-icon" id="my-list-mic"></i>
-            </div>
-            <div class="invite-row" id="invite-btn" onclick="copyInviteLink()">
-                <i class="fa-solid fa-user-plus"></i>
-                <span>Invite Members</span>
-            </div>
-        </div>
-
-        <div class="floating-messages" id="message-container"></div>
-
-        <div class="bottom-controls" id="main-controls">
-            <div class="control-btn-wrap"><button class="control-btn" onclick="showToast('Speaker ON')"><i class="fa-solid fa-volume-high"></i></button></div>
-            <div class="control-btn-wrap"><button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()"><i class="fa-solid fa-user" id="main-mic-icon"></i></button></div>
-            <div class="control-btn-wrap"><button class="control-btn" onclick="openChat()"><i class="fa-solid fa-message"></i></button></div>
-            <div class="control-btn-wrap"><button class="control-btn leave" onclick="leaveSession()"><i class="fa-solid fa-phone-slash"></i></button></div>
-        </div>
-
-        <div class="chat-input-area hidden" id="chat-box">
-            <i class="fa-regular fa-face-smile" onclick="closeChat()"></i>
-            <input type="text" id="chat-input" placeholder="Message..." oninput="checkInput()">
-            <button class="send-btn" id="send-btn" onclick="sendMessage(event)"><i class="fa-solid fa-paper-plane"></i></button>
+        <div class="invite-row" id="invite-btn" onclick="copyInviteLink()">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Invite Members</span>
         </div>
     </div>
+    <div class="floating-messages" id="message-container"></div>
+    <div class="bottom-controls" id="main-controls">
+        <div class="control-btn-wrap"><button class="control-btn" onclick="showToast('Speaker ON')"><i class="fa-solid fa-volume-high"></i></button></div>
+        <div class="control-btn-wrap"><button class="control-btn main-mic state-muted" id="main-mic-btn" onclick="toggleMainMic()"><i class="fa-solid fa-user" id="main-mic-icon"></i></button></div>
+        <div class="control-btn-wrap"><button class="control-btn" onclick="openChat()"><i class="fa-solid fa-message"></i></button></div>
+        <div class="control-btn-wrap"><button class="control-btn leave" onclick="leaveSession()"><i class="fa-solid fa-phone-slash"></i></button></div>
+    </div>
+    <div class="chat-input-area hidden" id="chat-box">
+        <i class="fa-regular fa-face-smile" onclick="closeChat()"></i>
+        <input type="text" id="chat-input" placeholder="Message..." oninput="checkInput()">
+        <button class="send-btn" id="send-btn" onclick="sendMessage(event)"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+</div>
 
-    <script>
-        // ─────────────────────────────────────────────
-        // CONFIGURATION — Updated with your new Tunnel Link
-        // ─────────────────────────────────────────────
-        const SOCKET_URL = "https://duo-creamer-plug.ngrok-free.dev";
+<script>
+    const SOCKET_URL = "https://duo-creamer-plug.ngrok-free.dev";
+    const PEER_HOST = "duo-creamer-plug.ngrok-free.dev";
+    const PEER_PORT = 443;
+    const PEER_PATH = "/peerjs";
+    const BOT_LINK = "https://t.me/sanatanigojobot";
 
-        const PEER_HOST = "duo-creamer-plug.ngrok-free.dev";
-        const PEER_PORT = 443;
-        const PEER_PATH = "/peerjs";   
+    let ROOM_ID = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('room')) {
+        ROOM_ID = urlParams.get('room');
+    } else if (window.location.href.includes('room=')) {
+        ROOM_ID = window.location.href.split('room=')[1].split('&')[0];
+    } else if (window.location.hash.includes('#room=')) {
+        ROOM_ID = window.location.hash.split('#room=')[1];
+    }
+    if (!ROOM_ID) {
+        ROOM_ID = "room_" + Math.random().toString(36).substring(2, 9);
+        window.history.replaceState(null, '', '?room=' + ROOM_ID);
+    }
 
-        // ─────────────────────────────────────────────
-        // ROOM EXTRACTION
-        // ─────────────────────────────────────────────
-        let ROOM_ID = null;
-        const urlParams = new URLSearchParams(window.location.search);
+    let socket, myPeer, localStream, isMuted = true;
+    let currentUser = "User", initial = "U", num1, num2, correctAnswer;
+    const peers = {}, dataConnections = {};
 
-        if (urlParams.get('room')) {
-            ROOM_ID = urlParams.get('room');
-        } else if (window.location.href.includes('room=')) {
-            ROOM_ID = window.location.href.split('room=')[1].split('&')[0];
-        } else if (window.location.hash.includes('#room=')) {
-            ROOM_ID = window.location.hash.split('#room=')[1];
-        }
-
-        if (!ROOM_ID) {
-            ROOM_ID = "room_" + Math.random().toString(36).substring(2, 9);
-            window.history.replaceState(null, '', '?room=' + ROOM_ID);
-        }
-
-        // ─────────────────────────────────────────────
-        // STATE
-        // ─────────────────────────────────────────────
-        let socket, myPeer, localStream, isMuted = true;
-        let currentUser = "User", initial = "U", num1, num2, correctAnswer;
-        const peers = {}, dataConnections = {};
-
-        // ─────────────────────────────────────────────
-        // INIT
-        // ─────────────────────────────────────────────
-        document.addEventListener("DOMContentLoaded", () => {
-            try {
-                if (window.Telegram?.WebApp) {
-                    window.Telegram.WebApp.ready();
-                    window.Telegram.WebApp.expand();
-                    window.Telegram.WebApp.setHeaderColor('#181d22');
-                    if (window.Telegram.WebApp.initDataUnsafe?.user) {
-                        currentUser = window.Telegram.WebApp.initDataUnsafe.user.first_name;
-                        initial = currentUser.charAt(0).toUpperCase();
-                    }
+    document.addEventListener("DOMContentLoaded", () => {
+        try {
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+                window.Telegram.WebApp.setHeaderColor('#181d22');
+                if (window.Telegram.WebApp.initDataUnsafe?.user) {
+                    currentUser = window.Telegram.WebApp.initDataUnsafe.user.first_name;
+                    initial = currentUser.charAt(0).toUpperCase();
                 }
-            } catch(e) {}
-
-            document.getElementById('my-name').innerText = currentUser;
-            document.getElementById('my-avatar').innerText = initial;
-            document.getElementById('my-avatar').style.backgroundColor = getColor(currentUser);
-
-            if (localStorage.getItem('vc_device_verified') === 'true') {
-                document.getElementById('captcha-screen').classList.add('hidden');
-                document.getElementById('join-overlay').classList.remove('hidden');
-            } else {
-                generateCaptcha();
             }
+        } catch(e) {}
+        document.getElementById('my-name').innerText = currentUser;
+        document.getElementById('my-avatar').innerText = initial;
+        document.getElementById('my-avatar').style.backgroundColor = getColor(currentUser);
+        if (localStorage.getItem('vc_device_verified') === 'true') {
+            document.getElementById('captcha-screen').classList.add('hidden');
+            document.getElementById('join-overlay').classList.remove('hidden');
+        } else {
+            generateCaptcha();
+        }
+    });
+
+    function generateCaptcha() {
+        num1 = Math.floor(Math.random() * 10) + 1;
+        num2 = Math.floor(Math.random() * 10) + 1;
+        correctAnswer = num1 + num2;
+        document.getElementById('math-problem').innerText = `${num1} + ${num2} = ?`;
+        document.getElementById('captcha-answer').value = '';
+    }
+
+    function verifyCaptcha() {
+        if (parseInt(document.getElementById('captcha-answer').value) === correctAnswer) {
+            localStorage.setItem('vc_device_verified', 'true');
+            document.getElementById('captcha-screen').classList.add('hidden');
+            document.getElementById('join-overlay').classList.remove('hidden');
+        } else {
+            document.getElementById('error-msg').style.display = 'block';
+            generateCaptcha();
+        }
+    }
+
+    const colors = ['#ff3b30','#ff9500','#ffcc00','#4cd964','#5ac8fa','#007aff','#5856d6'];
+    function getColor(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast-msg');
+        toast.innerText = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function callPeer(targetPeerId) {
+        if (peers[targetPeerId]) return;
+        console.log("📞 Calling peer:", targetPeerId);
+        const call = myPeer.call(targetPeerId, localStream, {
+            metadata: { name: currentUser, initial: initial }
         });
-
-        // ─────────────────────────────────────────────
-        // CAPTCHA
-        // ─────────────────────────────────────────────
-        function generateCaptcha() {
-            num1 = Math.floor(Math.random() * 10) + 1;
-            num2 = Math.floor(Math.random() * 10) + 1;
-            correctAnswer = num1 + num2;
-            document.getElementById('math-problem').innerText = `${num1} + ${num2} = ?`;
-            document.getElementById('captcha-answer').value = '';
+        if (!call) {
+            console.warn("myPeer.call() returned null for", targetPeerId);
+            return;
         }
+        call.on('error', err => {
+            console.error("Call error:", err);
+            showToast("Connection error: " + err.type);
+        });
+        call.on('stream', stream => {
+            console.log("🔊 Got stream from", targetPeerId);
+            playRemoteStream(stream, targetPeerId, "Connecting...", "?");
+        });
+        call.on('close', () => {
+            console.log("📵 Call closed with", targetPeerId);
+            removeParticipantUI(targetPeerId);
+        });
+        peers[targetPeerId] = call;
+        const conn = myPeer.connect(targetPeerId);
+        dataConnections[targetPeerId] = conn;
+        conn.on('open', () => conn.send({ name: currentUser, initial: initial }));
+        conn.on('data', data => handleDataMessage(targetPeerId, data));
+        conn.on('error', err => console.warn("Data conn error:", err));
+    }
 
-        function verifyCaptcha() {
-            if (parseInt(document.getElementById('captcha-answer').value) === correctAnswer) {
-                localStorage.setItem('vc_device_verified', 'true');
-                document.getElementById('captcha-screen').classList.add('hidden');
-                document.getElementById('join-overlay').classList.remove('hidden');
-            } else {
-                document.getElementById('error-msg').style.display = 'block';
-                generateCaptcha();
-            }
-        }
+    async function startCall() {
+        document.getElementById('join-overlay').classList.add('hidden');
+        document.getElementById('main-ui').classList.remove('hidden');
+        showToast("Connecting securely...");
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            localStream.getAudioTracks()[0].enabled = false;
+            isMuted = true;
 
-        // ─────────────────────────────────────────────
-        // HELPERS
-        // ─────────────────────────────────────────────
-        const colors = ['#ff3b30','#ff9500','#ffcc00','#4cd964','#5ac8fa','#007aff','#5856d6'];
-        function getColor(name) {
-            let hash = 0;
-            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-            return colors[Math.abs(hash) % colors.length];
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast-msg');
-            toast.innerText = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
-        }
-
-        // ─────────────────────────────────────────────
-        // CALL A SINGLE PEER
-        // ─────────────────────────────────────────────
-        function callPeer(targetPeerId) {
-            if (peers[targetPeerId]) return;
-
-            console.log("📞 Calling peer:", targetPeerId);
-
-            const call = myPeer.call(targetPeerId, localStream, {
-                metadata: { name: currentUser, initial: initial }
+            // ✅ Ngrok warning bypass
+            socket = io(SOCKET_URL, {
+                transports: ["websocket", "polling"],
+                extraHeaders: {
+                    "ngrok-skip-browser-warning": "true"
+                }
             });
 
-            if (!call) {
-                console.warn("myPeer.call() returned null for", targetPeerId);
-                return;
-            }
-
-            call.on('error', err => {
-                console.error("Call error with", targetPeerId, err);
-                showToast("Connection error: " + err.type);
+            socket.on('connect', () => console.log("🔌 Socket connected:", socket.id));
+            socket.on('connect_error', err => {
+                console.error("Socket error:", err);
+                showToast("Server connection failed");
             });
 
-            call.on('stream', stream => {
-                console.log("🔊 Got stream from", targetPeerId);
-                playRemoteStream(stream, targetPeerId, "Connecting...", "?");
+            // ✅ PeerJS VPS se connect
+            myPeer = new Peer(undefined, {
+                host: PEER_HOST,
+                port: PEER_PORT,
+                path: PEER_PATH,
+                secure: true,
+                debug: 2,
+                config: {
+                    iceServers: [
+                        { urls: "stun:stun.l.google.com:19302" },
+                        { urls: "stun:stun1.l.google.com:19302" }
+                    ]
+                }
             });
 
-            call.on('close', () => {
-                console.log("📵 Call closed with", targetPeerId);
+            myPeer.on('open', peerId => {
+                console.log("📍 Peer Open. ID:", peerId);
+                socket.emit('join-room', ROOM_ID, peerId);
+            });
+
+            myPeer.on('error', err => {
+                console.error("PeerJS error:", err);
+                showToast("Peer error: " + err.type);
+            });
+
+            myPeer.on('call', call => {
+                console.log("📲 Incoming call from:", call.peer);
+                call.answer(localStream);
+                const remoteName = call.metadata?.name || "User";
+                const remoteInit = call.metadata?.initial || "?";
+                call.on('stream', stream => {
+                    console.log("🔊 Stream from caller:", call.peer);
+                    playRemoteStream(stream, call.peer, remoteName, remoteInit);
+                });
+                call.on('error', err => console.error("Incoming call error:", err));
+                call.on('close', () => removeParticipantUI(call.peer));
+                if (!peers[call.peer]) peers[call.peer] = call;
+            });
+
+            myPeer.on('connection', conn => {
+                dataConnections[conn.peer] = conn;
+                conn.on('open', () => conn.send({ name: currentUser, initial: initial }));
+                conn.on('data', data => handleDataMessage(conn.peer, data));
+                conn.on('error', err => console.warn("Incoming data conn error:", err));
+            });
+
+            socket.on('user-connected', targetPeerId => {
+                console.log("👤 New user joined:", targetPeerId);
+                setTimeout(() => callPeer(targetPeerId), 500);
+            });
+
+            socket.on('existing-peers', existingPeerIds => {
+                console.log("👥 Existing peers:", existingPeerIds);
+                existingPeerIds.forEach(peerId => {
+                    setTimeout(() => callPeer(peerId), 500);
+                });
+            });
+
+            socket.on('user-disconnected', targetPeerId => {
+                console.log("❌ User left:", targetPeerId);
+                if (peers[targetPeerId]) { peers[targetPeerId].close(); delete peers[targetPeerId]; }
+                if (dataConnections[targetPeerId]) { dataConnections[targetPeerId].close(); delete dataConnections[targetPeerId]; }
                 removeParticipantUI(targetPeerId);
             });
 
-            peers[targetPeerId] = call;
-
-            const conn = myPeer.connect(targetPeerId);
-            dataConnections[targetPeerId] = conn;
-            conn.on('open', () => conn.send({ name: currentUser, initial: initial }));
-            conn.on('data', data => handleDataMessage(targetPeerId, data));
-            conn.on('error', err => console.warn("Data conn error:", err));
+        } catch(e) {
+            console.error("startCall error:", e);
+            alert("Please allow microphone access and try again.");
         }
-
-        // ─────────────────────────────────────────────
-        // WEBRTC ENGINE
-        // ─────────────────────────────────────────────
-        async function startCall() {
-            document.getElementById('join-overlay').classList.add('hidden');
-            document.getElementById('main-ui').classList.remove('hidden');
-            showToast("Connecting securely...");
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                localStream.getAudioTracks()[0].enabled = false;
-                isMuted = true;
-
-                socket = io(SOCKET_URL, { 
-    transports: ["websocket", "polling"],
-    extraHeaders: {
-        "ngrok-skip-browser-warning": "true"
     }
-});
 
-                socket.on('connect', () => console.log("🔌 Socket connected:", socket.id));
-                socket.on('connect_error', err => {
-                    console.error("Socket connection error:", err);
-                    showToast("Server connection failed");
-                });
-
-                myPeer = new Peer(undefined, {
-                    host: PEER_HOST,
-                    port: PEER_PORT,
-                    path: PEER_PATH,
-                    secure: true,
-                    debug: 2
-                });
-
-                myPeer.on('open', peerId => {
-                    console.log("📍 Peer Open. Native ID:", peerId);
-                    socket.emit('join-room', ROOM_ID, peerId);
-                });
-
-                myPeer.on('error', err => {
-                    console.error("PeerJS error:", err);
-                    showToast("Peer error: " + err.type);
-                });
-
-                myPeer.on('call', call => {
-                    console.log("📲 Incoming call from:", call.peer);
-                    call.answer(localStream);
-
-                    const remoteName = call.metadata?.name || "User";
-                    const remoteInit = call.metadata?.initial || "?";
-
-                    call.on('stream', stream => {
-                        console.log("🔊 Got stream from caller:", call.peer);
-                        playRemoteStream(stream, call.peer, remoteName, remoteInit);
-                    });
-
-                    call.on('error', err => console.error("Incoming call error:", err));
-                    call.on('close', () => removeParticipantUI(call.peer));
-
-                    if (!peers[call.peer]) peers[call.peer] = call;
-                });
-
-                myPeer.on('connection', conn => {
-                    dataConnections[conn.peer] = conn;
-                    conn.on('open', () => conn.send({ name: currentUser, initial: initial }));
-                    conn.on('data', data => handleDataMessage(conn.peer, data));
-                    conn.on('error', err => console.warn("Incoming data conn error:", err));
-                });
-
-                socket.on('user-connected', targetPeerId => {
-                    console.log("👤 New user joined room:", targetPeerId);
-                    setTimeout(() => callPeer(targetPeerId), 500);
-                });
-
-                socket.on('existing-peers', existingPeerIds => {
-                    console.log("👥 Existing peers in room:", existingPeerIds);
-                    existingPeerIds.forEach(peerId => {
-                        setTimeout(() => callPeer(peerId), 500);
-                    });
-                });
-
-                socket.on('user-disconnected', targetPeerId => {
-                    console.log("❌ User left room:", targetPeerId);
-                    if (peers[targetPeerId]) { peers[targetPeerId].close(); delete peers[targetPeerId]; }
-                    if (dataConnections[targetPeerId]) { dataConnections[targetPeerId].close(); delete dataConnections[targetPeerId]; }
-                    removeParticipantUI(targetPeerId);
-                });
-
-            } catch(e) {
-                console.error("startCall error:", e);
-                alert("Please allow microphone access and try again.");
-            }
+    function handleDataMessage(peerId, data) {
+        if (data.type === 'chat') {
+            displayMsg(data.name, data.text);
+        } else if (data.name) {
+            updateParticipantUI(peerId, data.name, data.initial);
         }
+    }
 
-    // ─────────────────────────────────────────────
-        // DATA MESSAGE HANDLER
-        // ─────────────────────────────────────────────
-        function handleDataMessage(peerId, data) {
-            if (data.type === 'chat') {
-                displayMsg(data.name, data.text);
-            } else if (data.name) {
-                updateParticipantUI(peerId, data.name, data.initial);
-            }
+    function playRemoteStream(stream, userId, name, init) {
+        if (!document.getElementById('audio-' + userId)) {
+            const audio = document.createElement('audio');
+            audio.id = 'audio-' + userId;
+            audio.srcObject = stream;
+            audio.autoplay = true;
+            audio.setAttribute('playsinline', '');
+            document.body.appendChild(audio);
+        } else {
+            document.getElementById('audio-' + userId).srcObject = stream;
         }
+        addParticipantUI(userId, name || "User", init || "?");
+    }
 
-        // ─────────────────────────────────────────────
-        // REMOTE STREAM / UI
-        // ─────────────────────────────────────────────
-        function playRemoteStream(stream, userId, name, init) {
-            if (!document.getElementById('audio-' + userId)) {
-                const audio = document.createElement('audio');
-                audio.id = 'audio-' + userId;
-                audio.srcObject = stream;
-                audio.autoplay = true;
-                audio.setAttribute('playsinline', '');
-                document.body.appendChild(audio);
-            } else {
-                document.getElementById('audio-' + userId).srcObject = stream;
-            }
-            addParticipantUI(userId, name || "User", init || "?");
+    function toggleMainMic() {
+        if (localStream) {
+            isMuted = !isMuted;
+            localStream.getAudioTracks()[0].enabled = !isMuted;
+            document.getElementById('main-mic-btn').className = isMuted ? 'control-btn main-mic state-muted' : 'control-btn main-mic state-live';
+            document.getElementById('main-mic-icon').className = isMuted ? 'fa-solid fa-user' : 'fa-solid fa-microphone';
+            document.getElementById('my-list-mic').className = isMuted ? 'fa-solid fa-microphone-slash mic-icon' : 'fa-solid fa-microphone mic-icon green';
+            document.getElementById('my-status').innerText = isMuted ? 'muted' : 'speaking';
+            if (!isMuted) document.getElementById('my-avatar').classList.add('speaking');
+            else document.getElementById('my-avatar').classList.remove('speaking');
         }
+    }
 
-        // ─────────────────────────────────────────────
-        // MIC TOGGLE
-        // ─────────────────────────────────────────────
-        function toggleMainMic() {
-            if (localStream) {
-                isMuted = !isMuted;
-                localStream.getAudioTracks()[0].enabled = !isMuted;
-                document.getElementById('main-mic-btn').className = isMuted
-                    ? 'control-btn main-mic state-muted'
-                    : 'control-btn main-mic state-live';
-                document.getElementById('main-mic-icon').className = isMuted
-                    ? 'fa-solid fa-user'
-                    : 'fa-solid fa-microphone';
-                document.getElementById('my-list-mic').className = isMuted
-                    ? 'fa-solid fa-microphone-slash mic-icon'
-                    : 'fa-solid fa-microphone mic-icon green';
-                document.getElementById('my-status').innerText = isMuted ? 'muted' : 'speaking';
-                if (!isMuted) document.getElementById('my-avatar').classList.add('speaking');
-                else document.getElementById('my-avatar').classList.remove('speaking');
-            }
+    const chatBox = document.getElementById('chat-box');
+    const mainControls = document.getElementById('main-controls');
+    const chatInput = document.getElementById('message-container');
+
+    function openChat() { mainControls.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
+    function closeChat() { chatInput.blur(); setTimeout(() => { chatBox.classList.add('hidden'); mainControls.classList.remove('hidden'); }, 100); }
+    function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
+
+    function sendMessage(e) {
+        if (e) e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text) return;
+        Object.keys(dataConnections).forEach(id => {
+            if (dataConnections[id].open) dataConnections[id].send({ type: 'chat', name: currentUser, text });
+        });
+        displayMsg(currentUser, text);
+        chatInput.value = '';
+        sendBtn.style.display = 'none';
+        closeChat();
+    }
+
+    function displayMsg(name, text) {
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.innerHTML = `<span><b>${name}:</b> ${text}</span>`;
+        msgContainer.appendChild(bubble);
+        setTimeout(() => bubble.remove(), 5000);
+    }
+
+    function addParticipantUI(uid, name, init) {
+        if (document.getElementById(`user-${uid}`)) return;
+        const list = document.getElementById('participant-list');
+        const inviteBtn = document.getElementById('invite-btn');
+        const row = document.createElement('div');
+        row.className = 'participant-item';
+        row.id = `user-${uid}`;
+        row.innerHTML = `
+            <div class="avatar" style="background-color: ${getColor(name)}">${init}</div>
+            <div class="info">
+                <span class="name">${name}</span>
+                <span class="status">listening</span>
+            </div>
+            <i class="fa-solid fa-microphone-slash mic-icon"></i>`;
+        list.insertBefore(row, inviteBtn);
+    }
+
+    function updateParticipantUI(uid, name, init) {
+        const row = document.getElementById(`user-${uid}`);
+        if (row) {
+            row.querySelector('.name').innerText = name;
+            row.querySelector('.avatar').innerText = init;
+            row.querySelector('.avatar').style.backgroundColor = getColor(name);
         }
+    }
 
-        // ─────────────────────────────────────────────
-        // CHAT
-        // ─────────────────────────────────────────────
-        const chatBox = document.getElementById('chat-box');
-        const mainControls = document.getElementById('main-controls');
-        const chatInput = document.getElementById('chat-input');
-        const sendBtn = document.getElementById('send-btn');
-        const msgContainer = document.getElementById('message-container');
+    function removeParticipantUI(uid) {
+        document.getElementById(`user-${uid}`)?.remove();
+        document.getElementById('audio-' + uid)?.remove();
+    }
 
-        function openChat() { mainControls.classList.add('hidden'); chatBox.classList.remove('hidden'); chatInput.focus(); }
-        function closeChat() { chatInput.blur(); setTimeout(() => { chatBox.classList.add('hidden'); mainControls.classList.remove('hidden'); }, 100); }
-        function checkInput() { sendBtn.style.display = chatInput.value.trim() !== '' ? 'block' : 'none'; }
+    function copyInviteLink() {
+        const link = window.location.origin + window.location.pathname + '?room=' + ROOM_ID;
+        navigator.clipboard.writeText(link).then(() => showToast("Link Copied! Share with friends."));
+    }
 
-        function sendMessage(e) {
-            if (e) e.preventDefault();
-            const text = chatInput.value.trim();
-            if (!text) return;
-            Object.keys(dataConnections).forEach(id => {
-                if (dataConnections[id].open) dataConnections[id].send({ type: 'chat', name: currentUser, text });
-            });
-            displayMsg(currentUser, text);
-            chatInput.value = '';
-            sendBtn.style.display = 'none';
-            closeChat();
+    function leaveSession() {
+        try {
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (socket) socket.disconnect();
+            if (myPeer) myPeer.destroy();
+        } catch(e) {}
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.close();
+        } else {
+            window.location.href = BOT_LINK;
         }
-
-        function displayMsg(name, text) {
-            const bubble = document.createElement('div');
-            bubble.className = 'msg-bubble';
-            bubble.innerHTML = `<span><b>${name}:</b> ${text}</span>`;
-            msgContainer.appendChild(bubble);
-            setTimeout(() => bubble.remove(), 5000);
-        }
-
-        // ─────────────────────────────────────────────
-        // PARTICIPANT UI
-        // ─────────────────────────────────────────────
-        function addParticipantUI(uid, name, init) {
-            if (document.getElementById(`user-${uid}`)) return;
-            const list = document.getElementById('participant-list');
-            const inviteBtn = document.getElementById('invite-btn');
-            const row = document.createElement('div');
-            row.className = 'participant-item';
-            row.id = `user-${uid}`;
-            row.innerHTML = `
-                <div class="avatar" style="background-color: ${getColor(name)}">${init}</div>
-                <div class="info">
-                    <span class="name">${name}</span>
-                    <span class="status">listening</span>
-                </div>
-                <i class="fa-solid fa-microphone-slash mic-icon"></i>`;
-            list.insertBefore(row, inviteBtn);
-        }
-
-        function updateParticipantUI(uid, name, init) {
-            const row = document.getElementById(`user-${uid}`);
-            if (row) {
-                row.querySelector('.name').innerText = name;
-                row.querySelector('.avatar').innerText = init;
-                row.querySelector('.avatar').style.backgroundColor = getColor(name);
-            }
-        }
-
-        function removeParticipantUI(uid) {
-            document.getElementById(`user-${uid}`)?.remove();
-            document.getElementById('audio-' + uid)?.remove();
-        }
-
-        // ─────────────────────────────────────────────
-        // INVITE & LEAVE (UPDATED LOGIC)
-        // ─────────────────────────────────────────────
-        function copyInviteLink() {
-            const link = window.location.origin + window.location.pathname + '?room=' + ROOM_ID;
-            navigator.clipboard.writeText(link).then(() => showToast("Link Copied! Share with friends."));
-        }
-
-        function leaveSession() {
-            // 1. सबसे पहले माइक और कनेक्शन बंद करो
-            try {
-                if (localStream) localStream.getTracks().forEach(t => t.stop());
-                if (socket) socket.disconnect();
-                if (myPeer) myPeer.destroy();
-            } catch(e) {}
-            
-            // 2. टैब को क्लोज करने का लॉजिक
-            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
-                // अगर Telegram Mini App के अंदर खुला है, तो सीधा पॉपअप गिरा देगा
-                window.Telegram.WebApp.close();
-            } else {
-                // अगर Telegram के In-App ब्राउज़र या नॉर्मल क्रोम में खुला है, तो टैब कट कर देगा
-                window.close();
-                
-                // ब्राउज़र सिक्योरिटी की वजह से अगर टैब कट नहीं हुआ, तो स्क्रीन पर 'कॉल एंड' दिखा देगा
-                document.body.innerHTML = `
-                    <div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background-color:#0f1115;">
-                        <i class="fa-solid fa-phone-slash" style="font-size:60px; color:#ff3b30; margin-bottom:20px;"></i>
-                        <h2 style="color:white; font-family:-apple-system, BlinkMacSystemFont, sans-serif; margin:0;">Call Ended</h2>
-                        <p style="color:#8b959d; font-family:-apple-system, BlinkMacSystemFont, sans-serif; font-size:14px; margin-top:10px;">You left the voice chat. You can close this tab to return to the group.</p>
-                    </div>
-                `;
-            }
-        }
-    </script>
+    }
+</script>
 </body>
 </html>
