@@ -147,16 +147,13 @@
 
     <script>
         // ─────────────────────────────────────────────
-        // CONFIGURATION — edit these two lines only
+        // CONFIGURATION — Updated with your new Tunnel Link
         // ─────────────────────────────────────────────
-        const SOCKET_URL = "https://criticism-diameter-awareness-suse.trycloudflare.com";
+        const SOCKET_URL = "https://range-britney-specification-age.trycloudflare.com";
 
-        // PeerJS Configuration
-        const PEER_HOST = "criticism-diameter-awareness-suse.trycloudflare.com";
+        const PEER_HOST = "range-britney-specification-age.trycloudflare.com";
         const PEER_PORT = 443;
         const PEER_PATH = "/peerjs";   
-
-        const BOT_LINK = "https://t.me/sanatanigojobot";
 
         // ─────────────────────────────────────────────
         // ROOM EXTRACTION
@@ -255,7 +252,7 @@
         // CALL A SINGLE PEER
         // ─────────────────────────────────────────────
         function callPeer(targetPeerId) {
-            if (peers[targetPeerId]) return; // already connected
+            if (peers[targetPeerId]) return;
 
             console.log("📞 Calling peer:", targetPeerId);
 
@@ -285,7 +282,6 @@
 
             peers[targetPeerId] = call;
 
-            // Data channel for name exchange
             const conn = myPeer.connect(targetPeerId);
             dataConnections[targetPeerId] = conn;
             conn.on('open', () => conn.send({ name: currentUser, initial: initial }));
@@ -303,7 +299,7 @@
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                localStream.getAudioTracks()[0].enabled = false; // start muted
+                localStream.getAudioTracks()[0].enabled = false;
                 isMuted = true;
 
                 socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
@@ -332,7 +328,6 @@
                     showToast("Peer error: " + err.type);
                 });
 
-                // Someone calls US (we are the callee)
                 myPeer.on('call', call => {
                     console.log("📲 Incoming call from:", call.peer);
                     call.answer(localStream);
@@ -351,7 +346,6 @@
                     if (!peers[call.peer]) peers[call.peer] = call;
                 });
 
-                // Someone opens a data connection TO us
                 myPeer.on('connection', conn => {
                     dataConnections[conn.peer] = conn;
                     conn.on('open', () => conn.send({ name: currentUser, initial: initial }));
@@ -384,7 +378,7 @@
             }
         }
 
-        // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────
         // DATA MESSAGE HANDLER
         // ─────────────────────────────────────────────
         function handleDataMessage(peerId, data) {
@@ -404,7 +398,7 @@
                 audio.id = 'audio-' + userId;
                 audio.srcObject = stream;
                 audio.autoplay = true;
-                audio.setAttribute('playsinline', '');  // required on iOS
+                audio.setAttribute('playsinline', '');
                 document.body.appendChild(audio);
             } else {
                 document.getElementById('audio-' + userId).srcObject = stream;
@@ -503,7 +497,7 @@
         }
 
         // ─────────────────────────────────────────────
-        // INVITE & LEAVE
+        // INVITE & LEAVE (UPDATED LOGIC)
         // ─────────────────────────────────────────────
         function copyInviteLink() {
             const link = window.location.origin + window.location.pathname + '?room=' + ROOM_ID;
@@ -511,15 +505,29 @@
         }
 
         function leaveSession() {
+            // 1. सबसे पहले माइक और कनेक्शन बंद करो
             try {
                 if (localStream) localStream.getTracks().forEach(t => t.stop());
                 if (socket) socket.disconnect();
                 if (myPeer) myPeer.destroy();
             } catch(e) {}
-            if (window.Telegram?.WebApp) {
+            
+            // 2. टैब को क्लोज करने का लॉजिक
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+                // अगर Telegram Mini App के अंदर खुला है, तो सीधा पॉपअप गिरा देगा
                 window.Telegram.WebApp.close();
             } else {
-                window.location.href = BOT_LINK;
+                // अगर Telegram के In-App ब्राउज़र या नॉर्मल क्रोम में खुला है, तो टैब कट कर देगा
+                window.close();
+                
+                // ब्राउज़र सिक्योरिटी की वजह से अगर टैब कट नहीं हुआ, तो स्क्रीन पर 'कॉल एंड' दिखा देगा
+                document.body.innerHTML = `
+                    <div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background-color:#0f1115;">
+                        <i class="fa-solid fa-phone-slash" style="font-size:60px; color:#ff3b30; margin-bottom:20px;"></i>
+                        <h2 style="color:white; font-family:-apple-system, BlinkMacSystemFont, sans-serif; margin:0;">Call Ended</h2>
+                        <p style="color:#8b959d; font-family:-apple-system, BlinkMacSystemFont, sans-serif; font-size:14px; margin-top:10px;">You left the voice chat. You can close this tab to return to the group.</p>
+                    </div>
+                `;
             }
         }
     </script>
